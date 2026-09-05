@@ -1,0 +1,48 @@
+// A `type`-valued `@computed` field on a *model* — the shape
+// `docs/design/computed-fields.md`'s "Schema surface" always described
+// ("a computed field's own type must be a scalar, enum, or
+// non-computed-bearing `type`") but which `reject_type_decl_as_model_field_type`
+// used to reject before it learned to skip `@computed` fields (#230's
+// storage-column rule never applied to a field that is never stored).
+//
+// `kind` is an enum and `assetId`/`url` are scalars, so the resolver
+// returns a genuinely composite value — one object, not a scalar — which
+// is exactly what flattening into N scalar computed fields was working
+// around downstream.
+//
+// Model/type names prefixed `CompTv` so their auto-derived tables don't
+// collide with any other fixture's tables on the shared external test
+// Postgres (same convention as `computed_fields_rpc_model.cstack`).
+
+transport rpc
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+enum CompTvMediaKind {
+  image
+  video
+}
+
+type CompTvMedia {
+  assetId String
+  kind CompTvMediaKind
+  url String
+}
+
+// Params type, to prove a `type`-valued computed field is parameterizable
+// on the same terms a scalar one is.
+type CompTvMediaParams {
+  width Int?
+}
+
+model CompTvProduct {
+  id Int @id
+  title String
+  defaultMedia CompTvMedia? @computed(params: CompTvMediaParams?)
+
+  @@allow("read", auth() != null)
+  @@allow("create", auth() != null)
+}

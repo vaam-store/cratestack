@@ -9,10 +9,11 @@
 // rather than argued from the code.
 //
 // Same shape as the REST fixture: zero procedures, and `Coordinates` is a
-// `type` block referenced by nothing (no model field can ever be typed
-// with a `type` block — parser-enforced), so it's an orphan that
-// `partition::Owner::owner_by_name` defaults to `Owner::Shared` rather
-// than `Owner::Procedures`. That keeps `procedures.dart`'s own
+// `type` block referenced by nothing (no *stored* model field can ever
+// be typed with a `type` block — parser-enforced, only a `@computed`
+// field is exempt, and no field below carries one), so it's an orphan
+// that `partition::Owner::owner_by_name` defaults to `Owner::Shared`
+// rather than `Owner::Procedures`. That keeps `procedures.dart`'s own
 // `data_classes` empty too, giving a true zero-procedure,
 // zero-data-class `procedures.dart` under `transport rpc`.
 

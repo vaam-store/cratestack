@@ -27,24 +27,30 @@
 //! own type from its own file" — so `crate::swr::context` handles them
 //! directly rather than through this ownership computation.
 //!
-//! ## A `type` block can never reach a model
+//! ## A `type` block can reach a model only through `@computed`
 //!
 //! Verified against `cratestack-parser`'s semantic checker
-//! (`validate/type_names.rs`): a model field cannot be typed as a `type`
-//! block at all — it's a hard parse error ("`type` blocks are not backed
-//! by a database column ... use a scalar, an `enum`, or a `@relation`").
-//! So a `type` block's only entry points are procedure args/return types
-//! (or another `type` block's own fields, transitively). Two *models*
-//! can never literally share a `type` block the way they can share an
-//! `enum` — but two *procedures* can, and since `src/procedures.ts` is
-//! one file regardless of how many procedures it holds, this module
-//! tracks each procedure as its own consumer (not one lumped
-//! "Procedures" bucket) specifically so that case still exercises real
-//! `Shared` classification instead of accidentally always winning by
-//! single-consumer default. `TypeOwner::Procedures` still means exactly
-//! one file either way (`src/procedures.ts`) — the per-procedure
-//! tracking only changes *whether* a multiply-referenced type counts as
-//! shared, not which file a procedures-only type lands in.
+//! (`validate/type_names.rs`): a *stored* model field cannot be typed as
+//! a `type` block — it's a hard parse error ("`type` blocks are not
+//! backed by a database column ... use a scalar, an `enum`, or a
+//! `@relation`") — but `reject_type_decl_as_model_field_type` exempts a
+//! `@computed` field from that check, since a computed field is never a
+//! column. So a `type` block's entry points are procedure args/return
+//! types, another `type` block's own fields (transitively), *and* now a
+//! model's own `@computed` field. Two *models* genuinely sharing a
+//! `type` block this way is therefore just as real as two models sharing
+//! an `enum` — `model_referenced_eligible_names` (`ownership_graph.rs`)
+//! walks every visible field, computed or not, so this falls out without
+//! any extra code. Two *procedures* can also share a `type` block, and
+//! since `src/procedures.ts` is one file regardless of how many
+//! procedures it holds, this module tracks each procedure as its own
+//! consumer (not one lumped "Procedures" bucket) specifically so that
+//! case still exercises real `Shared` classification instead of
+//! accidentally always winning by single-consumer default.
+//! `TypeOwner::Procedures` still means exactly one file either way
+//! (`src/procedures.ts`) — the per-procedure tracking only changes
+//! *whether* a multiply-referenced type counts as shared, not which file
+//! a procedures-only type lands in.
 //!
 //! ## Why this can't under-share
 //!

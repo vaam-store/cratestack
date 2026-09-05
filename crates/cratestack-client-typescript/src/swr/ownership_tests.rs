@@ -47,12 +47,14 @@ fn enum_used_by_two_models_is_shared() {
 
 #[test]
 fn nested_type_used_by_two_procedures_is_shared() {
-    // A model field can never be typed as a `type` block at all (a
-    // hard parse error — `cratestack-parser`'s
+    // A *stored* model field can never be typed as a `type` block at
+    // all (a hard parse error — `cratestack-parser`'s
     // `validate/type_names.rs`, "cannot use `type Address` as its
-    // storage type"), so a `type` block's only entry points are
-    // procedure args/return types. This is the closest real analog
-    // to "a nested type used by two models": two procedures, each
+    // storage type"); only a `@computed` field is exempt. Neither
+    // model below has one, so `Address`'s only entry points here are
+    // the two procedures' args — this exercises the procedure-side of
+    // sharing a `type` block (`ownership.rs`'s module doc covers the
+    // `@computed`-field side of the same thing): two procedures, each
     // paired with a different model's create operation, sharing one
     // `type` for its input shape.
     let schema = schema(

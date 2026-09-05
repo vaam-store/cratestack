@@ -1,19 +1,22 @@
 // Cross-model type reuse fixture for issue #304's ownership rule (see
 // `cratestack-client-typescript`'s `src/swr/ownership.rs` module doc,
-// "A `type` block can never reach a model"): `cratestack-parser` hard-
-// errors if a model field is typed as a `type` block ("cannot use `type
-// Address` as its storage type"), so a `type` block's only entry points
-// are procedure args/return types. This fixture exercises every branch
-// of the ownership computation:
+// "A `type` block can reach a model only through `@computed`"):
+// `cratestack-parser` hard-errors if a *stored* model field is typed as
+// a `type` block ("cannot use `type Address` as its storage type") —
+// only a `@computed` field is exempt, and no field below carries one —
+// so `Address`'s only entry points here are procedure args/return
+// types. This fixture exercises every branch of the ownership
+// computation:
 //
 //   - `Status` (an enum) is used directly by two models — the literal
 //     "enum used by two models" case — so it must land in
 //     `src/models/shared.ts`.
 //   - `Address` (a `type`) is used by two procedures, each paired with a
-//     different model's relocate operation — the closest real analog to
-//     "a nested type used by two models" this schema language allows —
-//     so it must also land in `src/models/shared.ts`, imported by
-//     `src/procedures.ts`.
+//     different model's relocate operation — the procedure-side analog
+//     to "a nested type used by two models" (a `@computed` field on two
+//     different models would also qualify, per `ownership.rs`'s module
+//     doc, but isn't exercised here) — so it must also land in
+//     `src/models/shared.ts`, imported by `src/procedures.ts`.
 //   - `Priority` (an enum) is used by exactly one model, to exercise the
 //     model-owned branch (inlined in that model's own file, not
 //     imported).

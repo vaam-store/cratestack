@@ -13,9 +13,10 @@ use crate::types::base_type_name;
 pub(super) enum Consumer {
     Model(String),
     /// One entry per procedure *name*, not one shared bucket — see
-    /// `ownership.rs`'s module doc's "A `type` block can never reach a
-    /// model" section for why this granularity matters even though every
-    /// procedure still renders into the same `src/procedures.ts`.
+    /// `ownership.rs`'s module doc's "A `type` block can reach a model
+    /// only through `@computed`" section for why this granularity
+    /// matters even though every procedure still renders into the same
+    /// `src/procedures.ts`.
     Procedure(String),
 }
 

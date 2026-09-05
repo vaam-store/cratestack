@@ -4,15 +4,19 @@
 //!
 //! **Schema-realism note:** `crates/cratestack-parser/src/validate/
 //! type_names.rs`'s `reject_type_decl_as_model_field_type` means a
-//! `type { ... }` block can *never* be a model field's storage type —
-//! only a scalar, an `enum`, or a `@relation` to another `model`. So a
-//! nested `type` can only ever be reached from the (single, combined)
-//! `Procedures` locus, or be unreferenced entirely — it can never be
-//! genuinely multi-owned the way an `enum` can (an `enum` *can* be a
+//! `type { ... }` block can never be a *stored* model field's storage
+//! type — only a scalar, an `enum`, a `@relation` to another `model`, or
+//! (since that function grew a `@computed` exemption) a `type` on a
+//! `@computed` field. A nested `type` reached only from procedure args/
+//! return types can still only ever land in the (single, combined)
+//! `Procedures` locus, or be unreferenced entirely — that half of the
+//! constraint (`type_reached_transitively_through_another_type_
+//! inherits_procedures_ownership`, below) is unchanged. But a `type`
+//! reached through `@computed` fields on two different models *is*
+//! genuinely multi-owned, the same as an `enum` (an `enum` *can* be a
 //! model field, so two different models can each reference the same
-//! `enum` directly). These fixtures reflect that real constraint rather
-//! than the impossible "a nested `type` embedded on two different
-//! models" shape.
+//! `enum` directly) — see `partition.rs`'s own doc comment on `Owner`
+//! for that case.
 use cratestack_parser::parse_schema;
 
 use super::*;
@@ -136,8 +140,9 @@ procedure search(filter: SearchFilter): User[]
 
 #[test]
 fn type_reached_transitively_through_another_type_inherits_procedures_ownership() {
-    // Only a procedure can ever reach a nested `type` (model fields
-    // can't — see this file's module doc), so this exercises the BFS
+    // No field below carries `@computed`, so no model reaches these
+    // types — only the procedure does (see this file's module doc for
+    // when a model field *can* reach a `type`). This exercises the BFS
     // traversal through a `type`-to-`type`-to-`enum` chain via the
     // `Procedures` locus rather than a model locus.
     let schema = parse_schema(
