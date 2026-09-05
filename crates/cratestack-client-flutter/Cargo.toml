@@ -71,6 +71,13 @@ frb-glue = ["dep:flutter_rust_bridge"]
 # `default-features = false` to drop it.
 default = ["codec-json", "decimal-rust-decimal"]
 codec-json = ["cratestack-client-rust/codec-json"]
+# Forwards `cratestack-client-rust`'s pluggable HTTP transport
+# (cratestack#926) so a consumer reaching this facade can hand the
+# generated client a `reqwest_middleware::ClientWithMiddleware` —
+# retries, tracing spans, caching — without depending on
+# `cratestack-client-rust` directly. Off by default and additive: with
+# it off, nothing new enters the dependency graph.
+middleware = ["cratestack-client-rust/middleware"]
 # `cratestack-client-rust`'s dependency edge has `default-features = false`
 # at the workspace root, so — same as `codec-json` above — this crate must
 # explicitly forward its own decimal-backend choice through, or the plain

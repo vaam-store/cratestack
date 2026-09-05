@@ -7,6 +7,7 @@ use serde::de::DeserializeOwned;
 use crate::client::CratestackClient;
 use crate::codec::HttpClientCodec;
 use crate::config::ClientConfig;
+use crate::idempotency::RequestIdempotency;
 use crate::rpc::batch::BatchBuilder;
 use crate::rpc::error::{RpcClientError, client_error_to_rpc, decode_rpc_unary_response};
 use crate::streaming::pump_streamed_response_typed;
@@ -47,6 +48,34 @@ where
     /// side-by-side (e.g. a long migration window between the two).
     pub fn inner(&self) -> &CratestackClient<C> {
         &self.inner
+    }
+
+    /// RPC half of the per-call idempotency override — forwards to
+    /// [`CratestackClient::with_idempotency`], which documents the whole
+    /// mechanism.
+    ///
+    /// RPC needs this more than REST does: every RPC call is
+    /// `POST /rpc/{op_id}`, so the method-derived default marks
+    /// *everything* non-idempotent, reads included. The per-op truth is
+    /// the `idempotent_by_default` field on the `OpDescriptor` the
+    /// schema macro emits (`cratestack_core::OpDescriptor`):
+    ///
+    /// ```ignore
+    /// let response = rpc
+    ///     .clone()
+    ///     .with_idempotency(RequestIdempotency::new(OP.idempotent_by_default))
+    ///     .call::<_, Output>(OP.op_id, &input)
+    ///     .await?;
+    /// ```
+    ///
+    /// Streamed calls ([`Self::call_streaming`]) carry the extension
+    /// too, but a partially-consumed stream cannot be replayed from the
+    /// middleware layer — leave those at the non-idempotent default
+    /// unless the middleware only retries before the first byte.
+    pub fn with_idempotency(self, idempotency: RequestIdempotency) -> Self {
+        Self {
+            inner: self.inner.with_idempotency(idempotency),
+        }
     }
 
     /// Start a new typed batch. Use with [`BatchableCall::queue`] from

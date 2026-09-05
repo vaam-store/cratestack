@@ -26,6 +26,20 @@ workspace = true
 # stray `application/json` response surfaces as a hard codec error.
 default = ["codec-json", "decimal-rust-decimal"]
 codec-json = ["dep:cratestack-codec-json"]
+# Pluggable HTTP transport (cratestack#926). Off by default and additive:
+# with it off the crate's dependency graph is byte-for-byte what it was —
+# `reqwest-middleware` is a `dep:`-gated optional dependency, so nothing
+# new is resolved, compiled, or licence-checked in a default build. With
+# it on, `CratestackClient::with_middleware_client` accepts a
+# `reqwest_middleware::ClientWithMiddleware`, so a consumer can layer
+# `reqwest-retry`, `reqwest-tracing`, caching, or any other
+# `reqwest_middleware::Middleware` under the generated client without
+# forking this crate. It also turns on the per-request
+# `RequestIdempotency` extension: reqwest 0.13 keeps
+# `reqwest::Request::extensions_mut()` `pub(crate)`, so a request
+# extension is only observable through `reqwest_middleware`'s own
+# `http::Extensions` bag, which only exists on this path.
+middleware = ["dep:reqwest-middleware"]
 # `cratestack-core`'s dependency edge has `default-features = false` at the
 # workspace root (cratestack#495), so this crate — a real, non-macro
 # consumer of `cratestack_core::Decimal` in its own generated-code support
@@ -77,6 +91,10 @@ futures-util.workspace = true
 minicbor.workspace = true
 minicbor-serde.workspace = true
 reqwest.workspace = true
+# Optional — see the `middleware` feature above. `dep:reqwest-middleware`
+# (not a bare `reqwest-middleware` feature name) so the dependency is
+# never implicitly exposed as a feature of the same name.
+reqwest-middleware = { workspace = true, optional = true }
 # #440: `reqwest`'s `rustls-no-provider` feature (see the workspace
 # `Cargo.toml`'s `reqwest` entry) ships no crypto provider — `CratestackClient::new`
 # installs a `ring` fallback (`client/core.rs`'s `ensure_crypto_provider`) so
@@ -93,6 +111,13 @@ url.workspace = true
 [dev-dependencies]
 async-stream = "0.3"
 axum.workspace = true
+# `middleware`-feature tests only (`tests/middleware.rs`): the
+# `reqwest_middleware::Middleware` trait's `handle` takes a
+# `&mut http::Extensions`, and `reqwest-middleware` does not re-export
+# the type, so the name has to come from `http` directly. Dev-only —
+# `http` is already in every build's graph via `reqwest`, so this adds
+# nothing to the resolved dependency set.
+http.workspace = true
 # Plain edge, not a hardcoded `features = [...]`: this is the same
 # `cratestack-core` instance as the `[dependencies]` entry above, and Cargo
 # unifies features for a single dependency across normal/dev edges of the

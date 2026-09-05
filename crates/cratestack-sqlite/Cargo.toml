@@ -64,6 +64,13 @@ decimal-bigdecimal = [
 # `cratestack-pg` for rationale. On `wasm32` the client runtime isn't
 # linked (no `reqwest`), so this feature has no effect there.
 codec-json = ["cratestack-client-rust/codec-json"]
+# Forwards `cratestack-client-rust`'s pluggable HTTP transport
+# (cratestack#926) so a consumer reaching this facade can hand the
+# generated client a `reqwest_middleware::ClientWithMiddleware` —
+# retries, tracing spans, caching — without depending on
+# `cratestack-client-rust` directly. Off by default and additive: with
+# it off, nothing new enters the dependency graph.
+middleware = ["cratestack-client-rust/middleware"]
 # Forwards `cratestack-macros`'s own `rate_limit` feature, same as
 # `cratestack-pg` (cratestack#154/#161) — lets an embedded schema declare
 # `extension rate_limit { }` without hitting `extension_gate`'s

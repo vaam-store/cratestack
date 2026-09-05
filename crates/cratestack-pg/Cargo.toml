@@ -129,6 +129,13 @@ decimal-bigdecimal = [
 # the client's codec, so they keep working over CBOR when this feature
 # is off.
 codec-json = ["cratestack-client-rust/codec-json"]
+# Forwards `cratestack-client-rust`'s pluggable HTTP transport
+# (cratestack#926) so a consumer reaching this facade can hand the
+# generated client a `reqwest_middleware::ClientWithMiddleware` —
+# retries, tracing spans, caching — without depending on
+# `cratestack-client-rust` directly. Off by default and additive: with
+# it off, nothing new enters the dependency graph.
+middleware = ["cratestack-client-rust/middleware"]
 # NOT YET FUNCTIONAL — enabling this feature is a hard compile_error!, not a
 # working FIPS mode. It exists only as a reserved name so a future PR can
 # wire it up without a breaking rename. `aws-lc-rs` is not a dependency of

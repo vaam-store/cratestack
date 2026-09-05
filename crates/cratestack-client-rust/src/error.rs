@@ -51,6 +51,14 @@ impl From<reqwest::Error> for TransportError {
 pub enum ClientError {
     #[error("transport error: {0}")]
     Transport(#[source] TransportError),
+    /// A middleware in the chain failed the request before (or instead
+    /// of) the transport did — cratestack#926. Only reachable under the
+    /// `middleware` feature; a transport-level failure raised *through*
+    /// a middleware chain still arrives as `Transport`, so this variant
+    /// never widens the meaning of an existing one.
+    #[cfg(feature = "middleware")]
+    #[error("middleware error: {0}")]
+    Middleware(#[source] crate::middleware::MiddlewareError),
     #[error("codec error: {0}")]
     Codec(#[from] CratestackError),
     #[error("state error: {0}")]
