@@ -60,7 +60,7 @@ where
     /// the `idempotent_by_default` field on the `OpDescriptor` the
     /// schema macro emits (`cratestack_core::OpDescriptor`):
     ///
-    /// ```ignore
+    /// ```text
     /// let response = rpc
     ///     .clone()
     ///     .with_idempotency(RequestIdempotency::new(OP.idempotent_by_default))
