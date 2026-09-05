@@ -57,7 +57,17 @@ had to fill by hand. `@computed` replaces it (parse error on `@custom` points he
   and `@custom` everywhere (`validate::removed_attributes`).
 - `@computed` cannot combine with any other field attribute (fail-closed).
 - A computed field's own type must be a scalar, enum, or non-computed-bearing `type`;
-  never a model.
+  never a model. This holds on a `model` owner as well as a `type` owner: the
+  storage-type rule that otherwise forbids a `type` block as a model field's type
+  (`validate::type_names::reject_type_decl_as_model_field_type`, #230/#235) exempts
+  `@computed` fields, because a computed field is never a column — `cratestack-migrate`
+  drops it before column conversion, so neither the missing `CREATE TYPE` nor the
+  encode/decode problem that rule guards against can arise. A *stored* model field
+  typed with a `type` block is still rejected. A `type`-valued computed field is
+  composed into the response as a nested object via `ProjectedValue::leaf`, which
+  serializes the resolver's return value with its own `Serialize` impl; the
+  `compose_<owner>` recursion is not involved, since the type is non-computed-bearing
+  by the rule above and so has nothing left inside it to resolve.
 - **Computed-bearing** (has a computed field, transitively through nested `type`
   fields — see `validate::computed::computed_bearing_names`): such names are rejected
   as procedure *argument* types (the client wire shape includes computed fields, the

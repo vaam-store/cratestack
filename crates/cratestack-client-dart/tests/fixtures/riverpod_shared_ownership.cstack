@@ -4,21 +4,23 @@
 // **Note on the fixture's shape vs. the ticket's literal wording:** the
 // ticket asks for "an enum used by two models, and a nested type used by
 // two models". The enum half is real and demonstrated below (`Role`).
-// The "nested type" half turned out to be impossible to construct: a
-// model field can never be typed with a `type` block at all —
-// `crates/cratestack-parser/src/validate/type_names.rs`'s
-// `reject_type_decl_as_model_field_type` rejects it at parse time (only
-// a scalar, an `enum`, or a `@relation` to another `model` are legal
-// model field types). So a `type` block can only ever be reached from
-// the schema's procedures (which all collapse into the one
-// `procedures.dart` locus) or be an unreferenced orphan — never
-// genuinely shared between two *models* the way an `enum` can. This
-// fixture instead demonstrates the closest real equivalent: `Address` is
-// a `type` reached only transitively (`SearchFilter` -> `Address`), which
-// still exercises the transitive-reachability half of the ownership rule
-// and lands correctly in `procedures.dart` rather than
-// `shared_types.dart`, without duplicating the fixture on false pretense.
-// See `crate::riverpod::partition`'s module doc for the verified rule.
+// The "nested type" half was impossible to construct at the time this
+// fixture was written: a *stored* model field can never be typed with a
+// `type` block at all — `crates/cratestack-parser/src/validate/
+// type_names.rs`'s `reject_type_decl_as_model_field_type` rejects it at
+// parse time (only a scalar, an `enum`, a `@relation` to another
+// `model`, or — since that function grew a `@computed` exemption — a
+// `type` on a `@computed` field are legal model field types). None of
+// the fields below carry `@computed`, so `Address`/`SearchFilter` still
+// can only ever be reached from the schema's procedures (which all
+// collapse into the one `procedures.dart` locus) or be an unreferenced
+// orphan here — not genuinely shared between two *models* the way
+// `Role` is. This fixture demonstrates that transitive-reachability
+// half of the ownership rule instead: `Address` is a `type` reached
+// only transitively (`SearchFilter` -> `Address`), landing correctly in
+// `procedures.dart` rather than `shared_types.dart`. See
+// `crate::riverpod::partition`'s module doc for the verified rule,
+// including the `@computed` case this fixture doesn't exercise.
 //
 // - `Role` (enum) is referenced by both `User.role` and `Post.editorRole`
 //   — genuinely owned by more than one model, so it must land in
