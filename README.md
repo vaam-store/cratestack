@@ -11,7 +11,7 @@
 [![MSRV](https://img.shields.io/badge/MSRV-1.98.0-blue)](rust-toolchain.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-[Documentation](https://cratestack.dev) · [Quickstart](https://cratestack.dev/getting-started/quickstart) · [Examples](examples) · [Contributing](CONTRIBUTING.md) · [Get help](SUPPORT.md)
+[Documentation](https://cratestack.dev) · [Quickstart](https://cratestack.dev/getting-started/quickstart) · [Examples](examples) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md) · [Get help](SUPPORT.md)
 
 </div>
 
@@ -269,6 +269,8 @@ can break. Known limits worth knowing before you adopt it:
   supported.
 
 Ecosystem-wide breaking changes are documented in [`CHANGELOG.md`](CHANGELOG.md).
+What's shipped, what's being built, and what's been ruled out is in
+[`ROADMAP.md`](ROADMAP.md).
 
 ## Contributing
 

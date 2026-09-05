@@ -24,6 +24,9 @@ Not sure which issue form applies? [Filing an issue](docs/contributing/filing-an
 the difference between the four short reporting forms (for you) and the three governance planning
 forms (which maintainers fill in on your behalf).
 
+Looking for something worth doing? [`ROADMAP.md`](ROADMAP.md) lists what's in flight,
+what's unclaimed, and what's been deliberately ruled out.
+
 Everyone participating here is expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Conventions worth knowing before you write code
