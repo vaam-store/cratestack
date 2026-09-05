@@ -52,7 +52,11 @@
       "patterns": [
         {
           "name": "keyword.control.cstack",
-          "match": "\\b(?:datasource|auth|mixin|model|type|procedure|mutation|mcp)\\b"
+          "match": "\\bpart\\s+of\\b"
+        },
+        {
+          "name": "keyword.control.cstack",
+          "match": "\\b(?:datasource|auth|mixin|model|type|procedure|mutation|mcp|part|import)\\b"
         }
       ]
     },
