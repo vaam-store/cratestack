@@ -1,6 +1,6 @@
 # CrateStack Roadmap
 
-**Last updated: 2026-09-03 · current release: 0.11.1**
+**Last updated: 2026-09-05 · current release: 0.11.1**
 
 This is a map of where CrateStack is, what's being built, and what's been
 deliberately ruled out. It is not a schedule and not a commitment. CrateStack is
@@ -66,7 +66,7 @@ a facade-disjointness job that proves absence with real `cargo tree` runs, a
 
 ### 🚧 OpExecutor — the L3 execution layer ([#875](https://github.com/cratestack/cratestack/issues/875))
 
-The one real epic in progress. `docs/design/rpc-transport.md` §4 specified an
+The architectural epic in progress. `docs/design/rpc-transport.md` §4 specified an
 `OpExecutor` on 2026-05-15 and `docs/design/layering.md` §2 called L3 "the one
 layer with no members" for three months. [ADR 0015](docs/adr/0015-op-executor-l3.md)
 (accepted, amended 2026-09-03) settles building it in slices.
@@ -87,6 +87,26 @@ dispatch path, which is the second input shape that made building L3 correct.
 Slice 3 closes a real correctness gap, not just a tidiness one: a subscriber on
 the SSE path authenticates but currently gets **no per-row filtering**, because
 `@@allow` is compiled into SQL and streamed events never pass through it.
+
+### 🆕 React Native (Expo + bare) as a client target ([#893](https://github.com/cratestack/cratestack/issues/893))
+
+React Native is the one major mobile host with no coverage at all. Scoped into
+five stories: a Rust-backed CBOR codec that runs on device, a `react-native`
+export condition across the shared packages, a generated RN client following the
+Dart preset pattern, a generated RTK Query endpoint set, and Expo + bare
+examples.
+
+Start at [#899](https://github.com/cratestack/cratestack/issues/899), a decision
+ticket: Hermes is gaining WebAssembly support, and if that lands broadly
+`@cratestack/cbor-web` may serve React Native with no native module at all.
+
+### 🆕 Multi-file schemas — `part` / `import` ([#910](https://github.com/cratestack/cratestack/issues/910))
+
+Split a large `.cstack` across thematic files (`part` / `part of`), and reuse a
+shared schema across services (`import`). Blocked at the front on
+[#915](https://github.com/cratestack/cratestack/issues/915), which settles
+`import` semantics before any parser work — including one product decision
+(whether imported `model`s create tables) reserved for the maintainer.
 
 ### 🐞 Open bugs
 
@@ -224,6 +244,10 @@ stand out that CrateStack genuinely lacks:
   WireMock emitter proves the traversal works.
 - **Client capability slicing.** CrateStack has server-side route suppression;
   narrowing what a *generated client* can express is a different axis.
+
+The React Native and Redux gaps that review also surfaced are no longer
+"under consideration" — they are scoped in
+[#893](https://github.com/cratestack/cratestack/issues/893).
 
 ### Deferred / known
 
