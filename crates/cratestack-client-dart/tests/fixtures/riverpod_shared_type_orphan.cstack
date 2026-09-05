@@ -6,14 +6,16 @@
 // off in the common (zero-shared-types) case `ci_rpc.cstack` already
 // covers.
 //
-// `Coordinates` is a `type` block referenced by nothing — no model field
-// can ever be typed with a `type` block (parser-enforced, see
+// `Coordinates` is a `type` block referenced by nothing — no *stored*
+// model field can ever be typed with a `type` block (parser-enforced,
+// only a `@computed` field is exempt; see
 // `riverpod_shared_ownership.cstack`'s own header comment for the full
-// explanation), and it's declared but never used by any procedure
-// either. `crate::riverpod::partition::Owner::owner_by_name` defaults an
-// unreferenced name to `Owner::Shared`, so this orphan type is the one
-// realistic way to get a genuine `type`-shaped data class into
-// `shared_types.dart` rather than `procedures.dart`.
+// explanation), no field below carries `@computed`, and it's declared
+// but never used by any procedure either. `crate::riverpod::partition::
+// Owner::owner_by_name` defaults an unreferenced name to
+// `Owner::Shared`, so this orphan type is the one realistic way to get
+// a genuine `type`-shaped data class into `shared_types.dart` rather
+// than `procedures.dart`.
 
 model Widget {
   id Int @id

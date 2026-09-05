@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use cratestack_core::{ExtensionKind, Field, Schema, SourceSpan, TypeRef};
+use cratestack_core::{ExtensionKind, Field, Schema, SourceSpan, TypeRef, is_computed_field};
 
 use crate::diagnostics::{SchemaError, span_error};
 
@@ -306,11 +306,29 @@ pub(super) fn collect_type_decl_names(schema: &Schema) -> BTreeSet<&str> {
 /// `tests/type_block_model_reference.rs`) and `type` blocks used as
 /// procedure args/return types are unaffected — both flow through
 /// `validate_type_ref` elsewhere, not through this model-field check.
+///
+/// A `@computed` field is exempt, because "storage type" is the whole
+/// premise of the rule and a computed field is never storage. It is
+/// resolved at response time and never becomes a column:
+/// `cratestack-migrate`'s `convert.rs` skips computed fields before
+/// `field_to_column` ever runs, so neither of the two failure modes
+/// above (DDL naming a composite type nothing creates; macros unable to
+/// encode/decode a column) can occur for one. `docs/design/
+/// computed-fields.md` §"Schema surface" has always specified a computed
+/// field's own type as "a scalar, enum, or non-computed-bearing `type`",
+/// and `super::computed::validate_computed` already enforces exactly
+/// that over models and `type`s alike — rejecting a model-typed one and
+/// a computed-bearing one. Without this exemption the documented shape
+/// was reachable on a `type` owner but not on a `model` owner, since
+/// only models flow through here.
 pub(super) fn reject_type_decl_as_model_field_type(
     type_decl_names: &BTreeSet<&str>,
     model_name: &str,
     field: &Field,
 ) -> Result<(), SchemaError> {
+    if is_computed_field(field) {
+        return Ok(());
+    }
     if type_decl_names.contains(field.ty.name.as_str()) {
         return Err(span_error(
             format!(

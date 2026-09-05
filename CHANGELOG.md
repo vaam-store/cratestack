@@ -41,6 +41,54 @@ What this does *not* fix: 0.11.1 itself. crates.io (all crates, `cratestack-exec
 cannot be re-run from CI (every publish job is gated on the tag push). `@cratestack/cbor-node@0.11.1`
 bundles every `.node` binary, so consumers still resolve a working binding.
 
+### A `@computed` field may be typed with a `type` block on a model, not only on a `type`
+
+`docs/design/computed-fields.md` has said since the feature shipped that "a computed field's own type
+must be a scalar, enum, or non-computed-bearing `type`". On a `type` owner that was true. On a `model`
+owner it was not: `reject_type_decl_as_model_field_type` (#230, fixed by #235) rejected *every* model
+field declared with a `type` block, and it runs per field with no regard for the field's attributes,
+so `@computed` never got a say. `check` failed with "cannot use `type X` as its storage type" on a
+field that has no storage.
+
+That rule is entirely storage-shaped — its own diagnostic says "not backed by a database column" and
+"Postgres has no `CREATE TYPE` emitted for it" — and neither hazard exists for a computed field,
+because a computed field never becomes a column at all: `cratestack-migrate`'s `convert.rs` drops it
+before `field_to_column` runs. `migrate diff` on such a schema emits a table with the stored columns
+and nothing else. So the check now returns early for `@computed` fields, and only for them: a
+*stored* model field typed with a `type` block is still rejected, with the same diagnostic, and a
+regression test pins that.
+
+The other `@computed` type rules are untouched and still govern. `validate::computed` already
+iterated models and `type`s uniformly and already rejected a computed field typed as a `model` (the
+resolver would have to fabricate a row) or as a computed-bearing `type` (resolver return values are
+serialized as-is, so nested computed fields would ship unresolved) — which is why the fix is an
+exemption in one function rather than a new rule anywhere.
+
+Nothing downstream needed changing, which was checked by running it rather than by reading it. The
+generated resolver returns the declared type because the macro's return-type mapping never
+distinguished scalars from `type` blocks; `ProjectedValue::leaf` takes any `Serialize` value and
+nests it as an object through `erased_serde`; and the Dart, TypeScript and Rust client generators all
+route model-field type mapping through the same mapper they already use for procedure arguments and
+nested `type` fields. Dart emits a `ProductDefaultMedia? defaultMedia` field with a `fromWire` nested
+decoder, TypeScript emits the interface plus the `nested` wire-shape entry, and the riverpod/swr
+per-file presets place the model-owned type in that model's own file. Several comments in those
+generators asserted the old invariant as permanent — including one calling the model-owned-`type`
+import path "currently unreachable", which it no longer is — and have been corrected in place.
+
+New coverage, because none existed: every `@computed` field in the test suite was `String`-typed, so
+even the `type`-owner case that already passed `check` was untested. A new
+`cratestack-parser/src/tests_computed_type_valued.rs` holds the accept cases (bare and
+parameterized) and three no-regression guards — its own file rather than more of the already
+grandfathered `tests_computed.rs`, which stays at the length the allowlist records — and
+`crates/cratestack-pg/tests/computed_fields_type_valued.rs` proves the whole path over RPC against a
+real Postgres — the response carries a nested object rather than a scalar, `computedParams` reaches a
+`type`-valued resolver, `list` composes per row, and `fields` exclusion still skips the resolver.
+`crates/cratestack-client/tests/computed_type_valued.rs` pins the other side of the wire: the
+generated client model types the field as the declared `type` (the struct literal would not compile
+otherwise) and round-trips it as a nested object, `null` included.
+
+Closes #909.
+
 ### A roadmap, and a recorded decision not to add SeaORM or Diesel
 
 There was no roadmap — no `ROADMAP.md`, no milestones, four open issues. The

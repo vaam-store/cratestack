@@ -233,15 +233,18 @@ pub(crate) fn build_model_file(
     // emits — `<Model>`, `Create<Model>Input`, `Update<Model>Input` and
     // `Projected<Model>` are all projections of them, and `<Model>Where`
     // spells the shared `DecimalFilter`/`BytesFilter` rather than the
-    // scalar itself. The `owned_type_decls` term chained below is
-    // currently unreachable: the parser rejects a `type` block as a model
-    // field's storage type (`cratestack-parser`'s
-    // `reject_type_decl_as_model_field_type`), so `partition.owned_names`
-    // for a `Owner::Model` locus can never yield a `TypeDecl` here — only
-    // enums are model-ownable. It's kept for symmetry with the adjacent,
-    // pre-existing `owned_type_decl_model_refs` call below, which has the
-    // identical dead term; in practice, the model's own fields are what
-    // drive this.
+    // scalar itself. The `owned_type_decls` term chained below *is*
+    // reachable, though only through a `@computed` field: the parser
+    // rejects a `type` block as a *stored* model field's storage type
+    // (`cratestack-parser`'s `reject_type_decl_as_model_field_type`), but
+    // exempts a `@computed` one, so `partition.owned_names` for a
+    // `Owner::Model` locus can yield a `TypeDecl` here whenever this
+    // model's `@computed` field type isn't shared with anything else.
+    // That `TypeDecl`'s own fields can themselves spell `Bytes`/
+    // `Decimal`, so this chain is load-bearing, not just symmetry with
+    // the adjacent, pre-existing `owned_type_decl_model_refs` call below
+    // — the model's own fields alone are no longer guaranteed to cover
+    // every scalar this file's data classes use.
     imports.extend(scalar_type_imports(
         model.fields.iter().map(|field| &field.ty).chain(
             owned_type_decls

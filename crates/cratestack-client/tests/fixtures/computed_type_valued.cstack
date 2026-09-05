@@ -1,0 +1,28 @@
+// A `type`-valued `@computed` field on a model, from the client's side of
+// the wire — see `docs/design/computed-fields.md` §"Schema surface" and
+// `crates/cratestack-pg/tests/fixtures/computed_fields_type_valued.cstack`
+// (the server-side counterpart that produces this shape).
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+enum ClientTvKind {
+  image
+  video
+}
+
+type ClientTvMedia {
+  assetId String
+  kind ClientTvKind
+  url String
+}
+
+model ClientTvProduct {
+  id Int @id
+  title String
+  defaultMedia ClientTvMedia? @computed
+
+  @@allow("read", auth() == null)
+}

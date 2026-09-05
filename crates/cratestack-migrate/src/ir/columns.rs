@@ -48,6 +48,13 @@ pub enum ColumnType {
     /// op exists for it (only enums get one — see `emit::postgres::enums`),
     /// so a column typed this way could never round-trip through real DDL.
     ///
+    /// That rejection now exempts `@computed` fields, which may be typed
+    /// with a `type` block (`docs/design/computed-fields.md` §"Schema
+    /// surface"). This variant stays unreachable anyway: a computed field
+    /// is resolved at response time and never becomes a column at all —
+    /// `super::super::convert`'s `is_computed_field` guard drops it before
+    /// `field_to_column` runs, so it never reaches this enum.
+    ///
     /// It is intentionally kept rather than deleted: `diff()` and
     /// `project_model()` in this crate take a plain `&Schema` and don't
     /// re-run parser validation, and `Schema` is also deserialized directly

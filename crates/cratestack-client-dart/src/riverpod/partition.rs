@@ -25,13 +25,20 @@ use crate::naming::{is_relation_field, model_name_set};
 /// this graph — a relation just makes one model's file import another's
 /// directly (see `crate::riverpod::imports::model_relation_targets`).
 ///
-/// **Verified asymmetry:** an `enum` can be a model field's type, so two
-/// models genuinely sharing one is real (`partition_tests.rs`'s
-/// `enum_used_by_two_models_is_shared`). A nested `type` block cannot —
-/// `cratestack-parser/src/validate/type_names.rs`'s
-/// `reject_type_decl_as_model_field_type` rejects that at parse time — so
-/// a `type` is only ever `Owner::Procedures` (every procedure collapses
-/// into that one locus) or an orphan, never multi-model-owned.
+/// **Narrower asymmetry than it looks:** an `enum` can be any model
+/// field's type, so two models genuinely sharing one is common
+/// (`partition_tests.rs`'s `enum_used_by_two_models_is_shared`). A
+/// nested `type` block can only be a model field's type when that field
+/// carries `@computed` — `cratestack-parser/src/validate/
+/// type_names.rs`'s `reject_type_decl_as_model_field_type` still rejects
+/// a *stored* model field typed as a `type` block at parse time, but
+/// exempts a `@computed` one, since a computed field is never a column
+/// (see that function's doc for the full rationale). The seed loop below
+/// doesn't distinguish stored from computed fields, so a `type` reached
+/// only through `@computed` fields on two different models is genuinely
+/// multi-model-owned too, the same as an `enum` — a `type` is only
+/// guaranteed single-owner (or an orphan) when its sole reachers are
+/// procedures.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum Owner {
     Model(String),
