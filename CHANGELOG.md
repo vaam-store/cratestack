@@ -76,8 +76,10 @@ generators asserted the old invariant as permanent — including one calling the
 import path "currently unreachable", which it no longer is — and have been corrected in place.
 
 New coverage, because none existed: every `@computed` field in the test suite was `String`-typed, so
-even the `type`-owner case that already passed `check` was untested. `tests_computed.rs` gains the
-accept cases (bare and parameterized) and three no-regression guards, and
+even the `type`-owner case that already passed `check` was untested. A new
+`cratestack-parser/src/tests_computed_type_valued.rs` holds the accept cases (bare and
+parameterized) and three no-regression guards — its own file rather than more of the already
+grandfathered `tests_computed.rs`, which stays at the length the allowlist records — and
 `crates/cratestack-pg/tests/computed_fields_type_valued.rs` proves the whole path over RPC against a
 real Postgres — the response carries a nested object rather than a scalar, `computedParams` reaches a
 `type`-valued resolver, `list` composes per row, and `fields` exclusion still skips the resolver.

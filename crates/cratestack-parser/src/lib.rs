@@ -19,6 +19,7 @@ mod tests_client_method_collisions;
 mod tests_computed;
 #[cfg(test)]
 mod tests_computed_params;
+mod tests_computed_type_valued;
 #[cfg(test)]
 mod tests_docs;
 #[cfg(test)]
