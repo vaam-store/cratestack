@@ -73,6 +73,15 @@ fn generate_ts_with_tanstack(
     generate_ts_with_swr_refine_and_tanstack(schema, out, check, false, false, tanstack)
 }
 
+fn generate_ts_with_rtk(
+    schema: PathBuf,
+    out: PathBuf,
+    check: bool,
+    rtk: bool,
+) -> anyhow::Result<()> {
+    generate_ts_with_all_flags(schema, out, check, false, false, false, rtk)
+}
+
 fn generate_ts_with_swr_refine_and_tanstack(
     schema: PathBuf,
     out: PathBuf,
@@ -80,6 +89,19 @@ fn generate_ts_with_swr_refine_and_tanstack(
     swr: bool,
     refine: bool,
     tanstack: bool,
+) -> anyhow::Result<()> {
+    generate_ts_with_all_flags(schema, out, check, swr, refine, tanstack, false)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn generate_ts_with_all_flags(
+    schema: PathBuf,
+    out: PathBuf,
+    check: bool,
+    swr: bool,
+    refine: bool,
+    tanstack: bool,
+    rtk: bool,
 ) -> anyhow::Result<()> {
     handle_generate_typescript(
         schema,
@@ -100,6 +122,7 @@ fn generate_ts_with_swr_refine_and_tanstack(
         // `tests/native_cbor_generator.rs` covers the flag's actual
         // behavior on RPC-transport schemas.
         true,
+        rtk,
     )
 }
 
@@ -310,6 +333,39 @@ fn typescript_check_flags_extra_react_query_as_real_drift_when_tanstack_is_remov
     assert!(
         message.contains("unexpected: src/react-query.ts"),
         "react-query.ts should be reported unexpected:\n{message}"
+    );
+}
+
+// Issue #906: `--check` must be `--rtk`-aware too, same reasoning as the
+// `--tanstack` pair above — `src/rtk-api.ts` is additive, not a
+// replacement.
+
+#[test]
+fn typescript_rtk_check_passes_when_output_matches_schema() {
+    let dir = TempDir::new().expect("tempdir");
+    let schema = write_schema(&dir, INITIAL_SCHEMA);
+    let out = dir.path().join("client");
+
+    generate_ts_with_rtk(schema.clone(), out.clone(), false, true).expect("initial --rtk generate");
+    generate_ts_with_rtk(schema, out, true, true)
+        .expect("check --rtk should pass against its own unmodified output");
+}
+
+#[test]
+fn typescript_check_flags_missing_rtk_api_as_real_drift_when_rtk_is_added() {
+    let dir = TempDir::new().expect("tempdir");
+    let schema = write_schema(&dir, INITIAL_SCHEMA);
+    let out = dir.path().join("client");
+
+    generate_ts_with_rtk(schema.clone(), out.clone(), false, false)
+        .expect("initial generate without --rtk");
+
+    let error = generate_ts_with_rtk(schema, out, true, true)
+        .expect_err("check --rtk against non-rtk output should report drift");
+    let message = error.to_string();
+    assert!(
+        message.contains("missing: src/rtk-api.ts"),
+        "rtk-api.ts should be reported missing:\n{message}"
     );
 }
 

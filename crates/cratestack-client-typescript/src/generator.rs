@@ -47,7 +47,7 @@ fn generate_default_package(
     schema: &Schema,
     config: &TypeScriptGeneratorConfig,
 ) -> Result<Vec<GeneratedTypeScriptFile>, TypeScriptGeneratorError> {
-    let specs = template_specs_for(schema.transport, config.refine, config.tanstack)?;
+    let specs = template_specs_for(schema.transport, config.refine, config.tanstack, config.rtk)?;
     let environment = build_environment(config.template_dir.as_deref(), &specs)?;
     let context = build_template_context(schema, config)?;
     specs

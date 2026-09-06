@@ -18,7 +18,7 @@ cratestack-parser = "0.7"
 ### Parse from a string
 
 ```rust
-use cratestack_parser::parse_schema;
+use cratestack_parser::parse_schema_named;
 
 let source = r#"
 auth Principal {
@@ -36,7 +36,7 @@ model Post {
 }
 "#;
 
-let schema = parse_schema(source)?;
+let schema = parse_schema_named("schema.cstack", source)?;
 ```
 
 ### Parse from a file
@@ -57,19 +57,21 @@ let schema = parse_schema_named("my-app/schema.cstack", source)?;
 
 ## Errors
 
-`SchemaError` carries a source span and a line number plus an ariadne-rendered report:
+`SchemaError` carries a source span, a line number, and the file it came from, plus an
+ariadne-rendered report:
 
 ```rust
-use cratestack_parser::{SchemaError, parse_schema};
+use cratestack_parser::{SchemaError, parse_schema_named};
 
-match parse_schema(source) {
+match parse_schema_named("schema.cstack", source) {
     Ok(schema) => { /* ... */ }
     Err(error) => {
         eprintln!("{}", error.message());
         eprintln!("line {}", error.line());
+        eprintln!("file {}", error.file());
         let span = error.span();
         eprintln!("bytes {}..{}", span.start, span.end);
-        eprintln!("{}", error.render("schema.cstack", source));
+        eprintln!("{}", error.render());
     }
 }
 ```

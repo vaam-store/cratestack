@@ -143,7 +143,7 @@ pub(crate) fn build_shared_context(
         procedures: schema
             .procedures
             .iter()
-            .map(|procedure| build_procedure(procedure, &occupied, &enum_names))
+            .map(|procedure| build_procedure(procedure, &occupied, &enum_names, &model_names))
             .collect(),
     };
 

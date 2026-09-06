@@ -2,6 +2,87 @@
 
 ## Unreleased
 
+### `SchemaError` carries its own file, and `render()` lost its arguments — breaking (#916)
+
+`SchemaError` held `message`, `span` and `line` but no file, and `render(path, source)`
+took the pair as arguments. Nothing tied that pair to the error: a caller could hand any
+source to any error and get a plausible-looking report, which is exactly the failure mode
+multi-file schemas would have made routine.
+
+The error now carries `file` and `source_text`, applied at the entry points in `entry.rs`,
+and `render()` takes no arguments.
+
+**Breaking, and wider than one crate.** `SchemaError` is re-exported from `cratestack-pg`,
+`cratestack-api` and `cratestack-sqlite`, so a consumer on the documented
+`cratestack = { package = "cratestack-pg" }` path who calls `error.render(path, source)`
+gets a compile error. The fix is to drop both arguments; if you were passing a path you
+knew, parse with `parse_schema_named` instead of `parse_schema` so the error carries it.
+
+**Diagnostic output is byte-identical for `parse_schema_named` and `parse_schema_file`** —
+verified by rendering 13 schemas × 5 paths through both entry points on both trees and
+comparing SHA-256. It is *not* identical for the two path-less entry points. `parse_schema` and
+`parse_schema_unvalidated` now render `<schema>` where a caller previously supplied their
+own path at render time. That is the behavioural cost of making the error self-describing,
+and it is why `cratestack-studio` moved to `parse_schema_named`. If you were passing a path
+you knew, parse with `parse_schema_named` and the error carries it.
+
+`ANONYMOUS_SCHEMA` is exported so a consumer can recognise that placeholder
+(`error.file() == cratestack_parser::ANONYMOUS_SCHEMA`) instead of hardcoding the string.
+
+The CLI's `--format json` diagnostics gain a `file` key. Purely additive — every existing
+key keeps its value and type.
+
+`Debug` for `SchemaError` is now hand-written rather than derived, and prints
+`source_text_len` instead of the source. A derived `Debug` would dump the entire `.cstack`
+file into every `.unwrap()` panic and every `{:?}` log line, with no compile error to warn
+anyone it had started happening.
+
+### `generate-typescript --rtk`: a generated RTK Query endpoint set, with invalidation tags derived from the schema
+
+`@cratestack/adapter-rtk` has shipped `createRpcBaseQuery` (an RTK Query `BaseQueryFn` over the
+generated RPC client) since the `@cratestack/api` package split, but its own README stated the gap
+plainly: no fully-generated endpoint set existed, unlike the `rpc-react-query.ts.j2`/
+`rest-react-query.ts.j2` hooks `--tanstack` already generates. `--rtk` (`crates/cratestack-client-typescript`)
+closes it: `src/rtk-api.ts` exports `createCratestackRtkApi(client)`, a typed `createApi` with one
+endpoint per model CRUD operation and per `procedure`/`mutation procedure`, on both REST and RPC
+transports.
+
+The two transports dispatch differently, on purpose — `@cratestack/adapter-rtk`'s `createRpcBaseQuery`
+is inherently RPC-only (it adapts an opId-addressed `RpcCaller.call()`, which REST has no equivalent
+of). RPC endpoints call the RESOLVED base query from inside `queryFn` (RTK Query's documented 4th
+`queryFn` argument) so the wire response can still be revived through `reviveWireFields`/
+`revivePagedWireFields` — the adapter's raw `call()` return has no `Decimal`/`Bytes` revival, and
+skipping that step would type-check while shipping the wrong runtime shape. REST endpoints use RTK
+Query's `fakeBaseQuery()` placeholder and call this same generated package's own REST client methods
+from `queryFn` — never a second transport implementation on either side.
+
+The part with real value: `providesTags`/`invalidatesTags` for the five model CRUD endpoints follow
+RTK Query's own documented tagging convention, but a `procedure`'s tags are DERIVED FROM THE SCHEMA —
+`crate::rtk::touch::touched_model_names` walks a procedure's own `args`/`return_type` (recursing
+through `Page<T>`/`FindMany<T>`) and turns the models it finds into that procedure's tag list. A
+mutation invalidating a bystander model it never mentions, or missing one it does, is exactly the
+class of stale-UI bug hand-maintained invalidation produces — `tests/rtk_tag_derivation.rs` proves
+the derived tags match a real mutation's real touched models, both transports, with a deliberately
+broken derivation confirmed to fail that test first.
+
+RTK Query's endpoint map is a single object literal, which makes a procedure/model name collision a
+same-object duplicate key (`ts(1117)`) rather than the barrel-level `TS2308` `--swr` guards against —
+`crate::rtk::naming` derives model endpoint keys from the RAW model name (`list{Model}`, never
+pluralized, unlike `--swr`'s `model_fn_names`), which makes a model-vs-model collision structurally
+impossible; `crate::rtk::collisions` still refuses the one collision that remains reachable
+(procedure vs. model), the same posture `crate::tanstack_collisions` established.
+
+Real `tsc` proof, not just source assertions: `tests/rtk_typecheck.rs` does a genuine `npm install` +
+`npm run build` against both transports' generated output. It surfaced two real defects fixed here —
+a `providesTags` map callback whose explicit parameter type was narrower than the actual (partial-
+selection-optional) model field type, and a currently-published npm defect unrelated to this
+change (`@cratestack/adapter-rtk@0.11.1` depends on an exact `@cratestack/ts-types@0.11.1` that was
+never published; `0.11.0` correctly depended on `ts-types@0.11.0`) — the RPC test retries pinned to
+that last known-good version rather than silently skipping, so it still proves the real claim.
+
+Purely additive, composing freely with `--swr`/`--refine`/`--tanstack` and every transport: every
+other emitted file is byte-identical with and without `--rtk`.
+
 ### An enum-typed field is now a filterable query-filter scalar, not just a sortable one (#928)
 
 `query_scalar_parser_tokens` (`cratestack-macros`'s runtime value parser for `?field=value` /
