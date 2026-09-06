@@ -9,13 +9,14 @@
 //! existing `*_tests.rs` convention, so the constants stay `pub(crate)`
 //! instead of being widened into the public API just to be asserted on.
 
-use super::{CRATESTACK_CBOR_FLOOR, CRATESTACK_REFINE_FLOOR};
+use super::{CRATESTACK_ADAPTER_RTK_FLOOR, CRATESTACK_CBOR_FLOOR, CRATESTACK_REFINE_FLOOR};
 
 /// Every floor this module guards, paired with the constant's name so a
 /// failure names the thing to edit rather than just its value.
-const FLOORS: [(&str, &str); 2] = [
+const FLOORS: [(&str, &str); 3] = [
     ("CRATESTACK_REFINE_FLOOR", CRATESTACK_REFINE_FLOOR),
     ("CRATESTACK_CBOR_FLOOR", CRATESTACK_CBOR_FLOOR),
+    ("CRATESTACK_ADAPTER_RTK_FLOOR", CRATESTACK_ADAPTER_RTK_FLOOR),
 ];
 
 /// The LOWER BOUND of any shape a floor is written in, as `(X, Y, Z)`: a

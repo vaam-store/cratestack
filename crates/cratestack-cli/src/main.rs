@@ -199,6 +199,7 @@ mod tests {
                 refine,
                 tanstack,
                 no_native_cbor,
+                rtk,
             } => {
                 assert_eq!(schema, PathBuf::from("schema.cstack"));
                 assert_eq!(out, PathBuf::from("out"));
@@ -224,6 +225,10 @@ mod tests {
                     "native cbor must default to ON for RPC-transport schemas (issue #746: \
                      @cratestack/cbor is now the default RPC codec); --no-native-cbor must be \
                      passed explicitly to turn it off"
+                );
+                assert!(
+                    !rtk,
+                    "--rtk must default to off (issue #906: opt-in, additive)"
                 );
             }
             _ => panic!("expected generate-typescript command"),
@@ -292,6 +297,30 @@ mod tests {
         match cli.command {
             Command::GenerateTypeScript { tanstack, .. } => {
                 assert!(tanstack);
+            }
+            _ => panic!("expected generate-typescript command"),
+        }
+    }
+
+    #[test]
+    fn generate_typescript_clap_accepts_rtk_flag() {
+        // Issue #906: `--rtk` additionally emits `src/rtk-api.ts` (a typed
+        // RTK Query `createApi` endpoint set), the `./rtk-api.js`
+        // re-export, and the `@reduxjs/toolkit`/`react-redux`/
+        // `@cratestack/adapter-rtk` peer/dev dependencies.
+        let cli = Cli::parse_from([
+            "cratestack",
+            "generate-typescript",
+            "--schema",
+            "schema.cstack",
+            "--out",
+            "out",
+            "--rtk",
+        ]);
+
+        match cli.command {
+            Command::GenerateTypeScript { rtk, .. } => {
+                assert!(rtk);
             }
             _ => panic!("expected generate-typescript command"),
         }

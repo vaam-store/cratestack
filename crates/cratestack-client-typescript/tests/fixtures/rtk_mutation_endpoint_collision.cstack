@@ -1,0 +1,39 @@
+// Deliberate collision fixture for cratestack#906: model `Post` derives
+// the `--rtk` endpoint-map key `createPost` (`crate::rtk::naming`'s
+// scheme), and `mutation procedure create_post` derives the same
+// identifier via `to_camel_case("create_post")`.
+//
+// `create`, not `list`/`get`/`update`/`delete`: `create` is the one
+// operation whose derived name and its Rust axum handler ident disagree
+// on plurality — `create_post` (singular, this generator's `--rtk` key)
+// against `handle_create_posts` (plural, `cratestack-parser`'s own
+// `procedure_handler_collisions` check) — so it is the only one of the
+// five that reaches this generator's check at all; `get_post`/
+// `update_post`/`delete_post` are BOTH schemes' singular form and would
+// be rejected by the parser before ever reaching here (same reasoning
+// `tanstack_mutation_hook_collision.cstack`'s header gives for its own
+// identical choice).
+//
+// `@@allow("create", ...)` is load-bearing: without a `create` rule the
+// model has no `createPost` endpoint at all, and there would be nothing
+// to collide with.
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+auth SessionUser {
+  id Int
+}
+
+model Post {
+  id Int @id
+  title String
+
+  @@allow("read", true)
+  @@allow("create", auth() != null)
+}
+
+mutation procedure create_post(): Post
+  @allow(auth() != null)

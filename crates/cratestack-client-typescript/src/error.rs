@@ -95,6 +95,26 @@ pub enum TypeScriptGeneratorError {
         model: String,
         operation: &'static str,
     },
+    /// cratestack#906: the `--rtk` analogue of
+    /// [`Self::TanstackHookNameCollision`]. RTK Query's endpoint map
+    /// (`src/rtk-api.ts`'s `createApi({ endpoints: (builder) => ({ ... }) })`)
+    /// is a single object literal, so a colliding key is a duplicate
+    /// property name (`ts(1117)`) — see `crate::rtk::collisions`'s module
+    /// doc for the full reasoning and why a model-vs-model collision is
+    /// structurally impossible under `crate::rtk::naming`'s scheme,
+    /// leaving only this procedure-vs-model case reachable.
+    #[error(
+        "--rtk: procedure `{procedure}` and model `{model}`'s generated `{operation}` endpoint \
+         are both declared as `{identifier}` in `src/rtk-api.ts`'s `createApi({{ endpoints }})` \
+         object (TypeScript ts(1117): an object literal cannot have multiple properties with \
+         the same name) — rename one of them so their camelCase forms differ"
+    )]
+    RtkEndpointNameCollision {
+        procedure: String,
+        identifier: String,
+        model: String,
+        operation: &'static str,
+    },
     /// The schema declares a composite primary key (`@@id([...])`) on at
     /// least one model. `include_*_schema!` has rejected these since the
     /// gap was found (see `cratestack_core::composite_id`), but this

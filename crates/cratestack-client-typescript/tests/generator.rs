@@ -26,6 +26,10 @@ fn generates_fetch_client_and_tanstack_hooks_for_blog_schema() {
             // real `TypeScriptGeneratorConfig::default()` this test would
             // otherwise get if it used `..Default::default()`.
             native_cbor: true,
+            // Issue #906: not this test's concern (its name says
+            // `tanstack`), same reasoning as every other field here that
+            // isn't `..Default::default()`.
+            rtk: false,
         },
     )
     .expect("--tanstack template should render");

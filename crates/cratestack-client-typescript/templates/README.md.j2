@@ -1,6 +1,6 @@
 # {{ package_name }}
 
-Generated CrateStack TypeScript client with a fetch transport{% if tanstack %} and TanStack Query hooks{% endif %}.
+Generated CrateStack TypeScript client with a fetch transport{% if tanstack %} and TanStack Query hooks{% endif %}{% if rtk %} and an RTK Query endpoint set{% endif %}.
 
 ```ts
 import { {{ client_class_name }} } from "{{ package_name }}";
@@ -135,6 +135,45 @@ function {{ models[0].name }}List({ client }: { client: {{ client_class_name }} 
   }
 
   return <ListView data={list.data} onCreate={(input) => create.mutate(input)} />;
+}
+```
+{% endif %}
+
+{% endif %}
+{% if rtk %}
+## RTK Query
+
+A typed `createApi` endpoint set — one entry per model operation and per
+procedure, `providesTags`/`invalidatesTags` derived from the schema (a
+`mutation procedure` invalidates every model its own arguments/return type
+reference; a model's `create`/`update`/`delete` invalidate that model's
+list and/or item tags the usual RTK Query way). Dispatches through
+`@cratestack/adapter-rtk`'s base query on an RPC-transport schema, or
+through this package's own REST client on a REST-transport schema —
+never a second transport implementation.
+
+```tsx
+import { configureStore } from "@reduxjs/toolkit";
+import { createCratestackRtkApi, {{ client_class_name }} } from "{{ package_name }}";
+
+const client = new {{ client_class_name }}("https://api.example.com");
+export const api = createCratestackRtkApi(client);
+
+export const store = configureStore({
+  reducer: { [api.reducerPath]: api.reducer },
+  middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(api.middleware),
+});
+```
+{% if models %}
+```tsx
+function {{ models[0].name }}List() {
+  const list = api.useList{{ models[0].name }}Query();
+  const [create] = api.useCreate{{ models[0].name }}Mutation();
+
+  if (list.isLoading) {
+    return null;
+  }
+  return <ListView data={list.data} onCreate={(input) => create(input)} />;
 }
 ```
 {% endif %}

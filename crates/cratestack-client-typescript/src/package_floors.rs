@@ -134,6 +134,22 @@ pub(crate) const CRATESTACK_REFINE_FLOOR: &str = "0.8.0";
 /// the exemption has been deleted, and the ordinary rule covers it.
 pub(crate) const CRATESTACK_CBOR_FLOOR: &str = "0.8.15";
 
+/// `@cratestack/adapter-rtk` — the RTK Query `BaseQueryFn` adapter a
+/// generated RPC-transport client lists under both `peerDependencies` and
+/// `devDependencies` when `--rtk` is on (issue #906). REST-transport
+/// clients never get this dependency: `templates/src/rtk-rest.ts.j2` has
+/// no base-query seam to dispatch through — see `crate::rtk`'s module doc.
+///
+/// `0.8.0` — the earliest release in the current `0.8.x` line, same
+/// reasoning as `CRATESTACK_REFINE_FLOOR` above. Verified against the
+/// published tarball rather than the changelog (the standard #754/#779
+/// set): `createRpcBaseQuery`'s exported signature in `0.8.0`'s
+/// `dist/index.d.ts` is byte-for-byte what `templates/src/rtk-rpc.ts.j2`
+/// references today — `createRpcBaseQuery(client: RpcCaller):
+/// BaseQueryFn<RpcBaseQueryArgs, unknown, RpcBaseQueryError>` — so there is
+/// no later API addition this floor needs to reach past.
+pub(crate) const CRATESTACK_ADAPTER_RTK_FLOOR: &str = "0.8.0";
+
 /// Pairs a floor above with the ceiling derived from **this crate's own
 /// version**, which is the workspace version under lockstep publishing.
 ///

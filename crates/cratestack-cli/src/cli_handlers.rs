@@ -53,6 +53,7 @@ pub(crate) fn run(cli: Cli) -> Result<()> {
             refine,
             tanstack,
             no_native_cbor,
+            rtk,
         } => handle_generate_typescript(
             schema,
             out,
@@ -69,6 +70,7 @@ pub(crate) fn run(cli: Cli) -> Result<()> {
             // i.e. native-on), but the generator API stays in terms of
             // `native_cbor`.
             !no_native_cbor,
+            rtk,
         )?,
         Command::GenerateWiremock {
             schema,
@@ -187,6 +189,7 @@ fn handle_generate_typescript(
     refine: bool,
     tanstack: bool,
     native_cbor: bool,
+    rtk: bool,
 ) -> Result<()> {
     let parsed = parse_schema_or_render(&schema)?;
     let schema_sha256 = hash_schema_source(&schema)?;
@@ -202,6 +205,7 @@ fn handle_generate_typescript(
             tanstack,
             schema_sha256,
             native_cbor,
+            rtk,
         },
     )?;
     let files = into_generated_files(package.files);

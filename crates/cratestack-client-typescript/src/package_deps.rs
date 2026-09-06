@@ -28,6 +28,7 @@
 //! `peer_dependencies_for`/`dev_dependencies_for` solve applies here too.
 
 use crate::config::TypeScriptGeneratorConfig;
+use crate::rtk::deps::{rtk_dev_dependencies, rtk_peer_dependencies};
 
 /// One `"name": "version"` entry in `package.json`'s `peerDependencies` or
 /// `devDependencies`.
@@ -37,14 +38,31 @@ pub(crate) struct DependencyEntry {
     version: String,
 }
 
+impl DependencyEntry {
+    /// `crate::rtk::deps` builds its own entries through this rather than
+    /// the struct literal — that literal syntax needs both fields visible
+    /// to the caller's module, and this module is the one place that
+    /// should decide the entry shape (issue #906 added the first caller
+    /// outside this file).
+    pub(crate) fn new(name: &'static str, version: String) -> Self {
+        Self { name, version }
+    }
+}
+
 /// `package.json.j2`'s `peerDependencies`, in the same order the object
 /// used to render in before issue #617: `--refine`'s two entries, then
-/// `--swr`'s two, then `--tanstack`'s one (now optional like the other
-/// two). Empty when none of the three flags are set — renders a valid
+/// `--swr`'s two, then `--tanstack`'s one, then `--rtk`'s two-or-three
+/// (issue #906). Empty when none of the flags are set — renders a valid
 /// empty `"peerDependencies": {}`.
+///
+/// `rtk_adapter_version_requirement` is only non-empty when `config.rtk`
+/// AND the schema is RPC transport (mirrors `native_cbor_version_requirement`'s
+/// own transport gate) — see `crate::rtk`'s module doc for why REST never
+/// depends on `@cratestack/adapter-rtk`.
 pub(crate) fn peer_dependencies_for(
     config: &TypeScriptGeneratorConfig,
     refine_version_requirement: &str,
+    rtk_adapter_version_requirement: &str,
 ) -> Vec<DependencyEntry> {
     let mut deps = Vec::new();
     if config.refine {
@@ -73,6 +91,13 @@ pub(crate) fn peer_dependencies_for(
             version: "^5.0.0".to_owned(),
         });
     }
+    // `--rtk`'s own entries (issue #906) live in `crate::rtk::deps` rather
+    // than inline here — see that module's doc comment for the dependency
+    // list and the `react`/`@types/react` de-duplication against `--swr`.
+    deps.extend(rtk_peer_dependencies(
+        config,
+        rtk_adapter_version_requirement,
+    ));
     deps
 }
 
@@ -85,6 +110,7 @@ pub(crate) fn peer_dependencies_for(
 pub(crate) fn dev_dependencies_for(
     config: &TypeScriptGeneratorConfig,
     refine_version_requirement: &str,
+    rtk_adapter_version_requirement: &str,
 ) -> Vec<DependencyEntry> {
     let mut deps = Vec::new();
     if config.refine {
@@ -117,6 +143,10 @@ pub(crate) fn dev_dependencies_for(
             version: "^5.0.0".to_owned(),
         });
     }
+    deps.extend(rtk_dev_dependencies(
+        config,
+        rtk_adapter_version_requirement,
+    ));
     deps.push(DependencyEntry {
         name: "typescript",
         version: "^7.0.2".to_owned(),

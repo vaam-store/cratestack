@@ -650,6 +650,8 @@ fn generate_with_config(
             // here rather than reading the real default, matching this
             // file's existing (pre-#746) convention.
             native_cbor: false,
+            // Issue #906: same reasoning, not this file's concern.
+            rtk: false,
         },
     )
     .expect("default template should render")
