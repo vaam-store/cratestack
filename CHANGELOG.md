@@ -2,6 +2,42 @@
 
 ## Unreleased
 
+### `SchemaError` now carries file identity, and the CLI's `--format json` shape changed to match
+
+`cratestack-parser`'s `SchemaError` previously had no idea which file it came from — `render(path,
+source)` took both as caller-supplied arguments, so an error was only ever attributable because the
+caller happened to remember what it had just parsed. That made multi-file diagnostics (`part`,
+`import` — cratestack#910/#911) impossible: nothing tied an error to a file once more than one was in
+play. `SchemaError` now tags itself with its file and that file's source the moment
+`parse_schema_named`/`parse_schema_diagnostics`/`parse_schema_file` produce it, exposed via a new
+`SchemaError::file()` accessor, and `render()` takes **no arguments** — it resolves its own file's
+source instead of trusting an ambient `(path, source)` pair a caller could (and, before more than one
+file existed, always did) supply correctly only by construction. `cratestack-cli`, `cratestack-macros`,
+and `cratestack-studio`'s call sites were updated to match; single-file diagnostic output is
+byte-identical to before (proved via a before/after comparison, not just re-reading the code).
+
+**Breaking, JSON-consuming tooling:** `cratestack check --format json`'s failure shape gained a `file`
+key per diagnostic entry:
+
+```jsonc
+{
+  "ok": false,
+  "schema": "path/to/schema.cstack",
+  "diagnostics": [
+    {
+      "message": "...",
+      "file": "path/to/schema.cstack",   // new
+      "line": 3,
+      "start": 12,
+      "end": 18
+    }
+  ]
+}
+```
+
+Actually parsing several files in one run is still out of scope here (cratestack#918, cratestack#920)
+— this only makes the error type capable of describing that once it lands.
+
 ### The npm publish wrapper retried the wrong things, and a green exit code was not a publish
 
 v0.11.1 (run 33808402763's tag, release run 33808493207) landed during npm's "Intermittent Failures

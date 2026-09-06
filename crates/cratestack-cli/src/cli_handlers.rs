@@ -115,7 +115,7 @@ fn handle_check(schema: PathBuf, format: OutputFormat) -> Result<()> {
         },
         Err(error) => match format {
             OutputFormat::Human => {
-                return Err(anyhow::anyhow!(render_schema_error(&schema, &error)));
+                return Err(anyhow::anyhow!(render_schema_error(&error)));
             }
             OutputFormat::Json => {
                 println!(

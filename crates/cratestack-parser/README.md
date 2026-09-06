@@ -57,7 +57,8 @@ let schema = parse_schema_named("my-app/schema.cstack", source)?;
 
 ## Errors
 
-`SchemaError` carries a source span and a line number plus an ariadne-rendered report:
+`SchemaError` carries a source span, a line number, and the file it came from, plus an
+ariadne-rendered report:
 
 ```rust
 use cratestack_parser::{SchemaError, parse_schema};
@@ -67,9 +68,10 @@ match parse_schema(source) {
     Err(error) => {
         eprintln!("{}", error.message());
         eprintln!("line {}", error.line());
+        eprintln!("file {}", error.file());
         let span = error.span();
         eprintln!("bytes {}..{}", span.start, span.end);
-        eprintln!("{}", error.render("schema.cstack", source));
+        eprintln!("{}", error.render());
     }
 }
 ```
