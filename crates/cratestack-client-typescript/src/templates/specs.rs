@@ -160,19 +160,20 @@ pub(crate) const REFINE_TEMPLATE_SPECS: &[TemplateSpec] = &[TemplateSpec {
 ///
 /// `tanstack` (issue #617) appends one extra spec, transport-resolved from
 /// `REST_TANSTACK_TEMPLATE_SPECS`/`RPC_TANSTACK_TEMPLATE_SPECS` above.
-/// Unlike `refine`, this composes with EVERY transport — `--tanstack` gates
-/// the same `src/react-query.ts` that used to be unconditional, it does
-/// not add support for a transport that lacked it before.
-///
+/// Unlike `refine`, this composes with EVERY transport — `--tanstack`
+/// gates the same `src/react-query.ts` that used to be unconditional, it
+/// does not add support for a transport that lacked it before.
 /// `refine` (issue #571) appends one extra spec for REST or RPC schemas.
 /// It is a parameter rather than folded into `mode_specs`
 /// because it is additive to an otherwise unchanged run — `refine: false`
 /// returns exactly the list this function returned before the flag
-/// existed. `tanstack` follows the same additive-parameter shape.
+/// existed. `tanstack`/`rtk` (issue #906, `crate::rtk::specs`) follow the
+/// same additive-parameter shape.
 pub(crate) fn template_specs_for(
     transport: TransportStyle,
     refine: bool,
     tanstack: bool,
+    rtk: bool,
 ) -> Result<Vec<TemplateSpec>, TypeScriptGeneratorError> {
     let mode_specs = match transport {
         TransportStyle::Rest => REST_TEMPLATE_SPECS,
@@ -186,13 +187,14 @@ pub(crate) fn template_specs_for(
     } else {
         &[]
     };
+    let rtk_specs = crate::rtk::specs::rtk_specs_for(transport, rtk);
     let refine_specs = if refine { REFINE_TEMPLATE_SPECS } else { &[] };
-    let mut specs = Vec::with_capacity(
-        COMMON_TEMPLATE_SPECS.len() + mode_specs.len() + tanstack_specs.len() + refine_specs.len(),
-    );
-    specs.extend_from_slice(COMMON_TEMPLATE_SPECS);
-    specs.extend_from_slice(mode_specs);
-    specs.extend_from_slice(tanstack_specs);
-    specs.extend_from_slice(refine_specs);
-    Ok(specs)
+    Ok([
+        COMMON_TEMPLATE_SPECS,
+        mode_specs,
+        tanstack_specs,
+        rtk_specs,
+        refine_specs,
+    ]
+    .concat())
 }

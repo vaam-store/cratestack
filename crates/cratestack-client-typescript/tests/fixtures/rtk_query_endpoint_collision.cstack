@@ -1,0 +1,36 @@
+// Deliberate collision fixture for cratestack#906: model `Post` derives
+// the `--rtk` endpoint-map key `listPost` (`crate::rtk::naming`'s scheme —
+// the RAW model name, never pluralized, unlike `--swr`'s `model_fn_names`),
+// and (query) `procedure list_post` derives the same identifier via
+// `to_camel_case("list_post")`.
+//
+// Deliberately `list_post` (SINGULAR) rather than `list_posts` (plural):
+// `cratestack-parser`'s `validate::procedure_handler_collisions` (#784)
+// already rejects a procedure literally named `list_posts` because that
+// collides with model `Post`'s own generated axum handler
+// (`handle_list_posts`, pluralized). `list_post` sidesteps that upstream
+// check entirely — its own generated handler is `handle_list_post`,
+// distinct from `handle_list_posts` — which is exactly what lets it
+// reach THIS generator's collision check instead of failing earlier for
+// an unrelated reason. Same exploited plural/singular mismatch
+// `tanstack_mutation_hook_collision.cstack`'s header explains for its own
+// `create_post` fixture.
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+auth SessionUser {
+  id Int
+}
+
+model Post {
+  id Int @id
+  title String
+
+  @@allow("read", true)
+}
+
+procedure list_post(): Post
+  @allow(auth() != null)

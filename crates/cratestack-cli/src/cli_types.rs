@@ -186,6 +186,22 @@ pub(crate) enum Command {
         /// this flag.
         #[arg(long)]
         no_native_cbor: bool,
+        /// Also emit `src/rtk-api.ts` (issue #906): a typed RTK Query
+        /// `createApi` endpoint set — one entry per model operation and
+        /// per `procedure` — dispatching through `@cratestack/adapter-rtk`'s
+        /// base query on an RPC-transport schema, or through this
+        /// package's own REST client on a REST-transport schema, plus the
+        /// `@reduxjs/toolkit`/`react-redux`/`@cratestack/adapter-rtk`
+        /// peer + dev dependencies in `package.json`. `providesTags`/
+        /// `invalidatesTags` are derived from the schema — a `mutation
+        /// procedure` invalidates every model its own `args`/return type
+        /// reference — never hand-written.
+        ///
+        /// Purely additive: every other emitted file is byte-identical
+        /// with and without it. Composes freely with `--swr`/`--refine`/
+        /// `--tanstack` and with every transport.
+        #[arg(long)]
+        rtk: bool,
     },
     /// Emit WireMock stub mappings (one per procedure, five per model —
     /// `list`/`get`/`create`/`update`/`delete`) derived from the

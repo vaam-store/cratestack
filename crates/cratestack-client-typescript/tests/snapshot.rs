@@ -699,6 +699,11 @@ fn generate_for_with_full_config(
             // native-on path has its own dedicated coverage in
             // `tests/native_cbor_generator.rs`.
             native_cbor: false,
+            // Issue #906: these golden fixtures predate `--rtk` too —
+            // pinned `false` like every other flag this helper hardcodes.
+            // The on path has its own dedicated coverage in
+            // `tests/rtk_generator.rs`.
+            rtk: false,
         },
     )
     .expect("default template should render")

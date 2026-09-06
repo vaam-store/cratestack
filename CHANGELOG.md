@@ -2,6 +2,52 @@
 
 ## Unreleased
 
+### `generate-typescript --rtk`: a generated RTK Query endpoint set, with invalidation tags derived from the schema
+
+`@cratestack/adapter-rtk` has shipped `createRpcBaseQuery` (an RTK Query `BaseQueryFn` over the
+generated RPC client) since the `@cratestack/api` package split, but its own README stated the gap
+plainly: no fully-generated endpoint set existed, unlike the `rpc-react-query.ts.j2`/
+`rest-react-query.ts.j2` hooks `--tanstack` already generates. `--rtk` (`crates/cratestack-client-typescript`)
+closes it: `src/rtk-api.ts` exports `createCratestackRtkApi(client)`, a typed `createApi` with one
+endpoint per model CRUD operation and per `procedure`/`mutation procedure`, on both REST and RPC
+transports.
+
+The two transports dispatch differently, on purpose — `@cratestack/adapter-rtk`'s `createRpcBaseQuery`
+is inherently RPC-only (it adapts an opId-addressed `RpcCaller.call()`, which REST has no equivalent
+of). RPC endpoints call the RESOLVED base query from inside `queryFn` (RTK Query's documented 4th
+`queryFn` argument) so the wire response can still be revived through `reviveWireFields`/
+`revivePagedWireFields` — the adapter's raw `call()` return has no `Decimal`/`Bytes` revival, and
+skipping that step would type-check while shipping the wrong runtime shape. REST endpoints use RTK
+Query's `fakeBaseQuery()` placeholder and call this same generated package's own REST client methods
+from `queryFn` — never a second transport implementation on either side.
+
+The part with real value: `providesTags`/`invalidatesTags` for the five model CRUD endpoints follow
+RTK Query's own documented tagging convention, but a `procedure`'s tags are DERIVED FROM THE SCHEMA —
+`crate::rtk::touch::touched_model_names` walks a procedure's own `args`/`return_type` (recursing
+through `Page<T>`/`FindMany<T>`) and turns the models it finds into that procedure's tag list. A
+mutation invalidating a bystander model it never mentions, or missing one it does, is exactly the
+class of stale-UI bug hand-maintained invalidation produces — `tests/rtk_tag_derivation.rs` proves
+the derived tags match a real mutation's real touched models, both transports, with a deliberately
+broken derivation confirmed to fail that test first.
+
+RTK Query's endpoint map is a single object literal, which makes a procedure/model name collision a
+same-object duplicate key (`ts(1117)`) rather than the barrel-level `TS2308` `--swr` guards against —
+`crate::rtk::naming` derives model endpoint keys from the RAW model name (`list{Model}`, never
+pluralized, unlike `--swr`'s `model_fn_names`), which makes a model-vs-model collision structurally
+impossible; `crate::rtk::collisions` still refuses the one collision that remains reachable
+(procedure vs. model), the same posture `crate::tanstack_collisions` established.
+
+Real `tsc` proof, not just source assertions: `tests/rtk_typecheck.rs` does a genuine `npm install` +
+`npm run build` against both transports' generated output. It surfaced two real defects fixed here —
+a `providesTags` map callback whose explicit parameter type was narrower than the actual (partial-
+selection-optional) model field type, and a currently-published npm defect unrelated to this
+change (`@cratestack/adapter-rtk@0.11.1` depends on an exact `@cratestack/ts-types@0.11.1` that was
+never published; `0.11.0` correctly depended on `ts-types@0.11.0`) — the RPC test retries pinned to
+that last known-good version rather than silently skipping, so it still proves the real claim.
+
+Purely additive, composing freely with `--swr`/`--refine`/`--tanstack` and every transport: every
+other emitted file is byte-identical with and without `--rtk`.
+
 ### The npm publish wrapper retried the wrong things, and a green exit code was not a publish
 
 v0.11.1 (run 33808402763's tag, release run 33808493207) landed during npm's "Intermittent Failures

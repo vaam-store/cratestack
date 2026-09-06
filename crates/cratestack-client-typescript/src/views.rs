@@ -5,6 +5,7 @@ use cratestack_core::{EnumDecl, Field, Model, TypeArity};
 use serde::Serialize;
 
 use crate::naming::{escape_ts_string, pluralize, to_camel_case, to_kebab_case, ts_identifier};
+use crate::rtk::naming::rtk_endpoint_names;
 use crate::types::{
     computed_params_fields, has_parameterized_computed_fields, is_paged_model, model_allows_create,
     primary_key_field, ts_type,
@@ -46,6 +47,12 @@ pub(crate) struct ModelApiView {
     pub(crate) file_stem: String,
     pub(crate) route: String,
     pub(crate) primary_key_type: String,
+    /// The primary key field's OWN property name (e.g. `id`, or `sku` for
+    /// a model whose `@id` field isn't called `id`) — issue #906's `--rtk`
+    /// needs this to read a list result item's id when building a
+    /// `providesTags` entry (`item.{{ model.primary_key_name }}`);
+    /// nothing before `--rtk` needed the NAME rather than just the TYPE.
+    pub(crate) primary_key_name: String,
     /// cratestack#743: extends the pre-existing (create-only)
     /// `model_allows_create`-based gate to all five CRUD verbs, sourced
     /// from `cratestack_core::model_internal_actions` — the one shared
@@ -105,6 +112,22 @@ pub(crate) struct ModelApiView {
     /// this view) — this field only carries the *name* a query-config
     /// generic instantiation references.
     pub(crate) computed_params_interface: Option<String>,
+    /// Issue #906: this model's five `--rtk` `createApi` endpoint-map
+    /// keys (`crate::rtk::naming::rtk_endpoint_names`). Computed once here
+    /// — not re-derived by string concatenation inside
+    /// `templates/src/rtk-{rest,rpc}.ts.j2` — so `crate::rtk::collisions`'s
+    /// pre-render collision check and the actually-rendered object key are
+    /// GUARANTEED to agree: a template-side `list{{ model.name }}`
+    /// literal would diverge from `rtk_endpoint_names`' camelCase
+    /// normalization the moment a model name contains an underscore
+    /// (`User_Group` → literal `listUser_Group` vs. normalized
+    /// `listUserGroup`), which would make the collision check compare
+    /// against a string nothing actually renders.
+    pub(crate) rtk_list_key: String,
+    pub(crate) rtk_get_key: String,
+    pub(crate) rtk_create_key: String,
+    pub(crate) rtk_update_key: String,
+    pub(crate) rtk_delete_key: String,
 }
 
 #[derive(Clone, Copy)]
@@ -171,6 +194,7 @@ pub(crate) fn build_model_api(model: &Model) -> ModelApiView {
     let accessor = pluralize(&to_camel_case(&model.name));
     let is_paged = is_paged_model(model);
     let internal = cratestack_core::model_internal_actions(model);
+    let rtk_names = rtk_endpoint_names(&model.name);
     ModelApiView {
         name: model.name.clone(),
         api_name: format!("{}Api", model.name),
@@ -178,6 +202,7 @@ pub(crate) fn build_model_api(model: &Model) -> ModelApiView {
         file_stem: to_kebab_case(&model.name),
         route,
         primary_key_type: ts_type(&primary_key.ty, &BTreeSet::new()),
+        primary_key_name: ts_identifier(&primary_key.name),
         allows_list: !internal.contains("list"),
         allows_get: !internal.contains("get"),
         allows_create: model_allows_create(model) && !internal.contains("create"),
@@ -199,6 +224,11 @@ pub(crate) fn build_model_api(model: &Model) -> ModelApiView {
         delete_mutation_key: format!("{}Delete", to_camel_case(&model.name)),
         computed_params_interface: has_parameterized_computed_fields(model)
             .then(|| computed_params_interface_name(&model.name)),
+        rtk_list_key: rtk_names.list,
+        rtk_get_key: rtk_names.get,
+        rtk_create_key: rtk_names.create,
+        rtk_update_key: rtk_names.update,
+        rtk_delete_key: rtk_names.delete,
     }
 }
 

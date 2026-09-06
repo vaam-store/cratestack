@@ -178,7 +178,7 @@ untrusted, and authorization is the server's job.
 | --- | --- | --- |
 | Rust | `include_client_schema!` | typed procedure clients + a reqwest-backed `Client` facade |
 | Dart / Flutter | `cratestack generate-dart` | models, selection builders, API facades, `--preset riverpod` layer |
-| TypeScript | `cratestack generate-typescript` | framework-neutral fetch client, TanStack Query hooks, `--swr` layer |
+| TypeScript | `cratestack generate-typescript` | framework-neutral fetch client, TanStack Query hooks, `--swr` layer, `--rtk` RTK Query endpoint set |
 
 Every generated client speaks the same HTTP projection contract the routes parse,
 so `fields`, `include`, `sort`, and `where` behave identically across languages.

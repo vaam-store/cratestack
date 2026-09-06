@@ -1,0 +1,200 @@
+import { createApi } from "@reduxjs/toolkit/query/react";
+import { createRpcBaseQuery, type RpcBaseQueryError } from "@cratestack/adapter-rtk";
+import type { {{ client_class_name }} } from "./client.js";
+import type {
+{% for interface in interfaces %}
+  {{ interface.name }},
+{% endfor %}
+{% for enum in enums %}
+  {{ enum.name }},
+{% endfor %}
+  Page,
+} from "./models.js";
+import { reviveWireFields, revivePagedWireFields, reviveWireScalar } from "./models.js";
+import { toRpcListInput, type CratestackRpcListQuery } from "./queries.js";
+
+/**
+ * A typed RTK Query `createApi` endpoint set over this schema's generated
+ * RPC client — one entry per model operation and per `procedure`, built
+ * on `@cratestack/adapter-rtk`'s `createRpcBaseQuery` (issue #906).
+ *
+ * Every endpoint's `queryFn` calls the RESOLVED base query (RTK Query's
+ * own 4th `queryFn` argument) rather than a plain `query:` mapping,
+ * because `createRpcBaseQuery`'s raw `RpcCaller.call()` returns the WIRE
+ * shape — no `Decimal`/`Bytes` revival — while this generated client's own
+ * per-model methods (`./client.js`) apply `reviveWireFields`/
+ * `revivePagedWireFields` after that same call. This still dispatches
+ * through the adapter's base query (not a second transport
+ * implementation); it just also applies the same revival step the
+ * generated client already applies, so the data RTK Query caches matches
+ * this package's own model types.
+ *
+ * `providesTags`/`invalidatesTags` are DERIVED FROM THE SCHEMA: the five
+ * model CRUD tags follow RTK Query's own documented convention, and every
+ * `procedure`'s tags are exactly the models its own `args`/return type
+ * reference (`crate::rtk::touch::touched_model_names` at generation time)
+ * — never hand-written.
+ */
+export function createCratestackRtkApi(
+  client: {{ client_class_name }},
+  options: { reducerPath?: string } = {},
+) {
+  return createApi({
+    reducerPath: options.reducerPath ?? "cratestackApi",
+    baseQuery: createRpcBaseQuery(client.runtime),
+    tagTypes: [
+{% for model in models %}
+      "{{ model.name }}",
+{% endfor %}
+    ] as const,
+    endpoints: (builder) => ({
+{% for model in models %}
+{% if model.allows_list %}
+      {{ model.rtk_list_key }}: builder.query<{{ model.list_return_type }}, CratestackRpcListQuery | void>({
+        queryFn: async (query, _api, _extraOptions, baseQuery) => {
+          const result = await baseQuery({
+            opId: "model.{{ model.name }}.list",
+            input: toRpcListInput(query ?? {}),
+          });
+          if (result.error) {
+            return { error: result.error as RpcBaseQueryError };
+          }
+          return {
+            data: {% if model.is_paged %}revivePagedWireFields{% else %}reviveWireFields{% endif %}(result.data, '{{ model.revival_shape_name }}') as {{ model.list_return_type }},
+          };
+        },
+        providesTags: (result) =>
+          result
+            ? [
+                // `item.{{ model.primary_key_name }}` is typed optional on this
+                // interface (`InterfaceKind::Model` forces every field
+                // optional to account for partial `fields`/`include`
+                // projection on the wire) — the `as` here asserts what is
+                // true for any `list()` call that doesn't explicitly
+                // narrow `fields` to exclude the primary key, which is
+                // the overwhelmingly common case a per-item cache tag is
+                // useful for at all.
+                ...({% if model.is_paged %}result.items{% else %}result{% endif %}).map((item) => ({
+                  type: "{{ model.name }}" as const,
+                  id: item.{{ model.primary_key_name }} as {{ model.primary_key_type }},
+                })),
+                { type: "{{ model.name }}" as const, id: "LIST" },
+              ]
+            : [{ type: "{{ model.name }}" as const, id: "LIST" }],
+      }),
+{% endif %}
+{% if model.allows_get %}
+      {{ model.rtk_get_key }}: builder.query<{{ model.name }}, {{ model.primary_key_type }}>({
+        queryFn: async (id, _api, _extraOptions, baseQuery) => {
+          const result = await baseQuery({ opId: "model.{{ model.name }}.get", input: { id } });
+          if (result.error) {
+            return { error: result.error as RpcBaseQueryError };
+          }
+          return { data: reviveWireFields(result.data, '{{ model.revival_shape_name }}') as {{ model.name }} };
+        },
+        providesTags: (_result, _error, id) => [{ type: "{{ model.name }}" as const, id }],
+      }),
+{% endif %}
+{% if model.allows_create %}
+      {{ model.rtk_create_key }}: builder.mutation<{{ model.name }}, {{ model.create_input_name }}>({
+        queryFn: async (input, _api, _extraOptions, baseQuery) => {
+          const result = await baseQuery({ opId: "model.{{ model.name }}.create", input });
+          if (result.error) {
+            return { error: result.error as RpcBaseQueryError };
+          }
+          return { data: reviveWireFields(result.data, '{{ model.revival_shape_name }}') as {{ model.name }} };
+        },
+        invalidatesTags: [{ type: "{{ model.name }}" as const, id: "LIST" }],
+      }),
+{% endif %}
+{% if model.allows_update %}
+      {{ model.rtk_update_key }}: builder.mutation<{{ model.name }}, { id: {{ model.primary_key_type }}; input: {{ model.update_input_name }} }>({
+        queryFn: async ({ id, input }, _api, _extraOptions, baseQuery) => {
+          const result = await baseQuery({
+            opId: "model.{{ model.name }}.update",
+            input: { id, patch: input },
+          });
+          if (result.error) {
+            return { error: result.error as RpcBaseQueryError };
+          }
+          return { data: reviveWireFields(result.data, '{{ model.revival_shape_name }}') as {{ model.name }} };
+        },
+        invalidatesTags: (_result, _error, arg) => [
+          { type: "{{ model.name }}" as const, id: arg.id },
+          { type: "{{ model.name }}" as const, id: "LIST" },
+        ],
+      }),
+{% endif %}
+{% if model.allows_delete %}
+      {{ model.rtk_delete_key }}: builder.mutation<void, { id: {{ model.primary_key_type }} }>({
+        queryFn: async ({ id }, _api, _extraOptions, baseQuery) => {
+          const result = await baseQuery({ opId: "model.{{ model.name }}.delete", input: { id } });
+          if (result.error) {
+            return { error: result.error as RpcBaseQueryError };
+          }
+          return { data: undefined };
+        },
+        invalidatesTags: (_result, _error, arg) => [
+          { type: "{{ model.name }}" as const, id: arg.id },
+          { type: "{{ model.name }}" as const, id: "LIST" },
+        ],
+      }),
+{% endif %}
+{% endfor %}
+{% for procedure in query_procedures %}
+      {{ procedure.method_name }}: builder.query<{{ procedure.return_type }}, {{ procedure.args_name }}>({
+        queryFn: async (args, _api, _extraOptions, baseQuery) => {
+          const result = await baseQuery({ opId: "procedure.{{ procedure.name }}", input: args });
+          if (result.error) {
+            return { error: result.error as RpcBaseQueryError };
+          }
+{% if procedure.revival_kind == "scalar" %}
+          return { data: reviveWireScalar(result.data, "{{ procedure.revival_scalar_kind }}") as {{ procedure.return_type }} };
+{% else %}
+          return {
+            data: {% if procedure.revival_paged %}revivePagedWireFields{% else %}reviveWireFields{% endif %}(result.data, '{{ procedure.revival_shape_name }}') as {{ procedure.return_type }},
+          };
+{% endif %}
+        },
+        // Schema-derived (issue #906): the models this procedure's own
+        // args/return type reference, per `crate::rtk::touch::touched_model_names`.
+        providesTags: [
+{% for touched_model in procedure.touched_models %}
+          { type: "{{ touched_model }}" as const, id: "LIST" },
+{% endfor %}
+        ],
+      }),
+{% endfor %}
+{% for procedure in mutation_procedures %}
+      {{ procedure.method_name }}: builder.mutation<{{ procedure.return_type }}, {{ procedure.args_name }}>({
+        queryFn: async (args, _api, _extraOptions, baseQuery) => {
+          const result = await baseQuery({ opId: "procedure.{{ procedure.name }}", input: args });
+          if (result.error) {
+            return { error: result.error as RpcBaseQueryError };
+          }
+{% if procedure.revival_kind == "scalar" %}
+          return { data: reviveWireScalar(result.data, "{{ procedure.revival_scalar_kind }}") as {{ procedure.return_type }} };
+{% else %}
+          return {
+            data: {% if procedure.revival_paged %}revivePagedWireFields{% else %}reviveWireFields{% endif %}(result.data, '{{ procedure.revival_shape_name }}') as {{ procedure.return_type }},
+          };
+{% endif %}
+        },
+        // Schema-derived (issue #906): the models this procedure's own
+        // args/return type reference, per `crate::rtk::touch::touched_model_names`.
+        // This is the ticket's actual point — a hand-maintained
+        // `invalidatesTags` array is a classic source of stale-UI bugs
+        // precisely because nothing checks it; this one cannot drift from
+        // the schema because it IS the schema.
+        invalidatesTags: [
+{% for touched_model in procedure.touched_models %}
+          { type: "{{ touched_model }}" as const, id: "LIST" },
+{% endfor %}
+        ],
+      }),
+{% endfor %}
+    }),
+  });
+}
+
+export type CratestackRtkApi = ReturnType<typeof createCratestackRtkApi>;

@@ -390,6 +390,8 @@ fn generate_for(
             // REST-only (`tiny_rest`), where `native_cbor` (issue #746) has
             // no effect — pinned `false` like every other flag here.
             native_cbor: false,
+            // Issue #906: not this file's concern, same reasoning.
+            rtk: false,
         },
     )
     .expect("default template should render")

@@ -23,6 +23,14 @@ pub const DEFAULT_TANSTACK: bool = false;
 /// current reasoning and the one open platform gap.
 pub const DEFAULT_NATIVE_CBOR: bool = true;
 
+/// Whether a schema with no `--rtk`/`rtk: ...` given at all emits
+/// `src/rtk-api.ts`. `false` — same posture `DEFAULT_TANSTACK` documents:
+/// a brand-new opt-in framework binding defaults off, unlike
+/// `DEFAULT_NATIVE_CBOR` (an established default this crate is merely
+/// mirroring from Dart). See [`TypeScriptGeneratorConfig::rtk`]'s doc
+/// comment for what the flag emits.
+pub const DEFAULT_RTK: bool = false;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeScriptGeneratorConfig {
     pub package_name: String,
@@ -141,6 +149,21 @@ pub struct TypeScriptGeneratorConfig {
     /// itself async — that would break every existing consumer's
     /// construction call (swr/tanstack/refine layers, every example).
     pub native_cbor: bool,
+    /// Issue #906 (epic #893's `#897`): additionally emit `src/rtk-api.ts` —
+    /// an RTK Query `createApi` endpoint set, built on the existing
+    /// `@cratestack/adapter-rtk` `createRpcBaseQuery` primitive for an
+    /// RPC-transport schema — and re-export it from `src/index.ts`. See
+    /// `crate::rtk`'s module doc for the full shape, and why REST and RPC
+    /// necessarily dispatch differently even though both stay "no second
+    /// transport implementation" (RPC calls the adapter's base query
+    /// directly; REST's `queryFn` still calls this same generated
+    /// package's own REST client methods, since no REST equivalent of
+    /// `@cratestack/adapter-rtk` exists to dispatch through).
+    ///
+    /// Purely additive, mirroring `tanstack`/`refine`/`swr`: every other
+    /// emitted file is byte-identical with and without it. Composes freely
+    /// with every other flag and every transport.
+    pub rtk: bool,
 }
 
 impl Default for TypeScriptGeneratorConfig {
@@ -155,6 +178,7 @@ impl Default for TypeScriptGeneratorConfig {
             tanstack: DEFAULT_TANSTACK,
             schema_sha256: String::new(),
             native_cbor: DEFAULT_NATIVE_CBOR,
+            rtk: DEFAULT_RTK,
         }
     }
 }

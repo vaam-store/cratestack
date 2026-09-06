@@ -9,6 +9,7 @@ use cratestack_core::{Procedure, ProcedureKind};
 use serde::Serialize;
 
 use crate::naming::{procedure_wrapper_name, to_camel_case, to_pascal_case};
+use crate::rtk::touch::touched_model_names;
 use crate::types::ts_type;
 use crate::wire_shapes::{ProcedureRevival, procedure_revival};
 
@@ -50,12 +51,22 @@ pub(crate) struct ProcedureView {
     /// is_paged`'s doc comment for why that needs a different runtime
     /// helper). `false` for `"scalar"`.
     pub(crate) revival_paged: bool,
+    /// Issue #906: model names this procedure's own `args`/`return_type`
+    /// reference — `crate::rtk::touch::touched_model_names`, sorted for a
+    /// stable render order. `--rtk`'s ONLY consumer today: a query
+    /// procedure's `providesTags`, a mutation procedure's
+    /// `invalidatesTags` — one `{ type, id: 'LIST' }` per entry. Empty for
+    /// every procedure when `--rtk` never ran the schema (harmless: no
+    /// template reads this field without `--rtk`), and empty for any
+    /// procedure whose own signature touches no model.
+    pub(crate) touched_models: Vec<String>,
 }
 
 pub(crate) fn build_procedure(
     procedure: &Procedure,
     occupied_type_names: &BTreeSet<String>,
     enum_names: &BTreeSet<&str>,
+    model_names: &BTreeSet<&str>,
 ) -> ProcedureView {
     let (revival_kind, revival_scalar_kind, revival_shape_name, revival_paged) =
         match procedure_revival(&procedure.return_type) {
@@ -79,5 +90,8 @@ pub(crate) fn build_procedure(
         revival_scalar_kind,
         revival_shape_name,
         revival_paged,
+        touched_models: touched_model_names(procedure, model_names)
+            .into_iter()
+            .collect(),
     }
 }
