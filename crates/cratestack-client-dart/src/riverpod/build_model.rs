@@ -19,8 +19,8 @@ use crate::find_many_order::{build_find_many_data_class, build_order_by_clause_d
 use crate::find_many_views::{build_sort_field_enum, build_where_data_class};
 use crate::idents::to_camel_case;
 use crate::naming::{
-    is_computed_field, is_generated_on_create, is_primary_key, model_name_set,
-    occupied_type_names, scalar_model_fields,
+    is_computed_field, is_generated_on_create, is_primary_key, model_name_set, occupied_type_names,
+    scalar_model_fields,
 };
 use crate::riverpod::imports::{
     model_file_path, model_file_stem, model_relation_targets, owned_type_decl_model_refs,
@@ -155,7 +155,11 @@ pub(crate) fn build_model_file(
         .into_iter()
         .filter_map(|name| enum_by_name.get(name))
     {
-        data_classes.push(build_enum_filter_data_class(enum_decl, &occupied));
+        data_classes.push(build_enum_filter_data_class(
+            enum_decl,
+            &occupied,
+            &enum_names,
+        ));
     }
 
     // `<Model>Where`/`<Model>SortField`/`<Model>OrderByClause`/

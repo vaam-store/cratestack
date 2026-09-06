@@ -42,8 +42,14 @@ pub(crate) fn build_template_context(
     // generated unconditionally alongside the enum itself — same
     // "generated regardless of use" convention `<Model>Where`/
     // `SortField`/`OrderByClause` below already follow.
+    let all_enum_names: std::collections::BTreeSet<&str> =
+        schema.enums.iter().map(|e| e.name.as_str()).collect();
     for enum_decl in &schema.enums {
-        data_classes.push(build_enum_filter_data_class(enum_decl, &occupied_type_names));
+        data_classes.push(build_enum_filter_data_class(
+            enum_decl,
+            &occupied_type_names,
+            &all_enum_names,
+        ));
     }
     for ty in &schema.types {
         let fields = ty.fields.iter().collect::<Vec<_>>();

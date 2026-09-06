@@ -53,23 +53,16 @@ fn enum_type_ref(enum_name: &str, arity: TypeArity) -> TypeRef {
 /// `{EnumName}EnumFilter`, then `{EnumName}ValueFilter` — same two-step
 /// fallback shape as `crate::naming::procedure_wrapper_name`, which
 /// hits the identical class of collision for `<Procedure>Args`.
-pub(crate) fn enum_filter_class_name(enum_name: &str, occupied: &BTreeSet<String>) -> String {
-    let base = format!("{enum_name}Filter");
-    if !occupied.contains(&base) {
-        return base;
-    }
-    let enum_fallback = format!("{enum_name}EnumFilter");
-    if !occupied.contains(&enum_fallback) {
-        return enum_fallback;
-    }
-    format!("{enum_name}ValueFilter")
-}
+mod naming;
+
+pub(crate) use naming::enum_filter_class_name;
 
 pub(crate) fn build_enum_filter_data_class(
     enum_decl: &EnumDecl,
     occupied: &BTreeSet<String>,
+    all_enum_names: &BTreeSet<&str>,
 ) -> DataClassView {
-    let filter_name = enum_filter_class_name(&enum_decl.name, occupied);
+    let filter_name = enum_filter_class_name(&enum_decl.name, occupied, all_enum_names);
     // A single-element set is enough: `decode_value_expr`/`encode_value_expr`
     // only ever consult it to ask "is this exact type name an enum", and
     // every field on this class is typed to `enum_decl` itself.
@@ -152,3 +145,6 @@ pub(crate) fn build_enum_filter_data_class(
         fields,
     }
 }
+
+#[cfg(test)]
+mod collision_tests;

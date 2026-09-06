@@ -118,8 +118,22 @@ pub use cratestack_macros::include_client_schema;
 // `RelationInclude`, the untyped-REST-route `OrderCatalog`/
 // `OrderRelationEdge`, …) is server/embedded-only — see this module's doc.
 pub use cratestack_sql::{
-    FieldRef, FilterExpr, IntoSqlValue, OrderClause, Orderable, RelationHop, RelationQuantifier,
-    SortDirection, Unorderable, order_value_sql, wrap_filter,
+    FieldRef,
+    FilterExpr,
+    IntoSqlValue,
+    OrderClause,
+    Orderable,
+    RelationHop,
+    RelationQuantifier,
+    // `SqlValue` is `IntoSqlValue::into_sql_value`'s return type. Exporting
+    // the trait without it left the trait unimplementable by generated code
+    // in this facade — which is what broke `include_client_schema!` for any
+    // schema with an enum-typed model field (cratestack#928).
+    SortDirection,
+    SqlValue,
+    Unorderable,
+    order_value_sql,
+    wrap_filter,
 };
 
 pub use chrono;

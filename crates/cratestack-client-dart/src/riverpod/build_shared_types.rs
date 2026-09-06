@@ -69,7 +69,11 @@ pub(crate) fn build_shared_types_file(
     // One `{EnumName}Filter` class per shared-owned enum (cratestack#928)
     // — same per-file pairing `build_model.rs` gives a model-owned enum.
     for enum_decl in &shared_enums {
-        data_classes.push(build_enum_filter_data_class(enum_decl, &occupied));
+        data_classes.push(build_enum_filter_data_class(
+            enum_decl,
+            &occupied,
+            &enum_names,
+        ));
     }
 
     let mut imports = referenced_models

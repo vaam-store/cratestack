@@ -100,6 +100,18 @@ pub(crate) fn generate_client_enum_type(enum_decl: &EnumDecl) -> proc_macro2::To
                 }
             }
         }
+
+        // Mirrors `generate_enum_type`'s impl deliberately. `<Model>Where`'s
+        // `to_filters()` is emitted by BOTH composers, and since #928 made
+        // enum fields filterable it calls `FieldRef::eq/ne/in_`, which bound
+        // `V: IntoSqlValue`. Without this, `include_client_schema!` fails to
+        // compile with E0277 for any schema having an enum-typed model field
+        // — a shape no client fixture had, which is why CI stayed green.
+        impl ::cratestack::IntoSqlValue for #enum_ident {
+            fn into_sql_value(self) -> ::cratestack::SqlValue {
+                ::cratestack::SqlValue::String(self.to_string())
+            }
+        }
     }
 }
 

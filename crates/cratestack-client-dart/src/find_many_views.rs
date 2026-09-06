@@ -50,7 +50,7 @@ fn filter_type_name(
     occupied: &BTreeSet<String>,
 ) -> String {
     if enum_names.contains(field.ty.name.as_str()) {
-        return enum_filter_class_name(&field.ty.name, occupied);
+        return enum_filter_class_name(&field.ty.name, occupied, enum_names);
     }
     match field.ty.name.as_str() {
         "String" | "Cuid" => "StringFilter",
