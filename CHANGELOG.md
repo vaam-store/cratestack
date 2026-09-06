@@ -30,6 +30,14 @@ generic `EqualityFilter<V>`/`ComparableFilter<V>`), and the Dart client's `<Mode
 shared generic filter base — a new per-enum `{EnumName}Filter` data class is now generated alongside
 each schema enum) all now include enum-typed fields, matching what `<Model>SortField` already listed.
 
+**Optional enum fields remain unfilterable.** `state OrderState?` still returns
+`400 unsupported query filter` on every operator, because `filter_arms.rs` gates
+`eq`/`ne`/`in` on `TypeArity::Required` — pre-existing behaviour for all optional
+scalars, not introduced here. It is called out because #928's motivating list
+(refund status, KYC status, vendor status) is full of plausibly-nullable enums,
+and because the typed Rust `<Model>Where` path is deliberately *not* arity-gated,
+so the two surfaces now disagree for enums specifically.
+
 ### The npm publish wrapper retried the wrong things, and a green exit code was not a publish
 
 v0.11.1 (run 33808402763's tag, release run 33808493207) landed during npm's "Intermittent Failures

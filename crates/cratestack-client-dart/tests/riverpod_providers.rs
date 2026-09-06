@@ -605,3 +605,36 @@ fn assert_snapshot_matches(dir: &Path, package: &GeneratedDartPackage) {
 fn snapshot_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/snapshots")
 }
+
+/// The paired negative: a `shared_types.dart` with **zero** data classes must
+/// not carry a builder part directive or the annotations import.
+///
+/// `package:cratestack_builder`'s `PartBuilder` writes no output file for a
+/// target with no annotated classes, so an unconditional directive dangles
+/// into a real `flutter analyze --fatal-warnings` `uri_has_not_been_generated`
+/// failure.
+///
+/// This assertion previously rode on `ci_rpc.cstack`, which had no shared data
+/// classes until cratestack#928 gave every enum a generated filter class. That
+/// flipped `ci_rpc` to the positive case and the negative one was deleted
+/// rather than rehomed, leaving a reachable state guarded by nothing. This
+/// fixture is a schema that genuinely partitions nothing as shared.
+#[test]
+fn shared_types_file_without_data_classes_has_no_dangling_builder_part() {
+    let package = generate(
+        "no_shared_types",
+        "dart_no_shared_types",
+        DartPreset::Riverpod,
+    );
+    let shared_types = package_file(&package, "lib/src/models/shared_types.dart");
+
+    assert!(
+        !shared_types.contains("part 'shared_types.builder.dart';"),
+        "a shared_types.dart with no annotated classes must not emit a builder \
+         part directive — cratestack_builder writes no such file:\n{shared_types}"
+    );
+    assert!(
+        !shared_types.contains("package:cratestack_annotations"),
+        "nor the annotations import, for the same reason:\n{shared_types}"
+    );
+}

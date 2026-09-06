@@ -1,0 +1,16 @@
+// A schema whose `TypePartition` assigns NOTHING to `Owner::Shared`:
+// one model, no enums, no procedures, no shared `type` blocks. Exists so
+// the empty-`shared_types.dart` negative case has a home after
+// cratestack#928 gave `ci_rpc.cstack` its first shared data class.
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+model Note {
+  id Int @id
+  title String
+
+  @@allow("read", true)
+}
