@@ -11,21 +11,31 @@ use crate::naming::{escape_ts_string, ts_identifier};
 use crate::types::{is_computed_field, scalar_model_fields};
 use crate::views::{EnumView, FieldView, InterfaceView};
 
-/// Same 8 types `cratestack-macros`'s `find_many_where.rs` filters
-/// generated code down to — `Json`/`Bytes`/enum/custom-`type` fields are
+/// Same types `cratestack-macros`'s `find_many_where.rs` filters
+/// generated code down to — `Json`/`Bytes`/custom-`type` fields are
 /// excluded, matching the untyped REST `?where=` route's own
-/// (`query_scalar_parser_tokens`-proven) coverage.
-fn is_filterable_scalar(field: &Field) -> bool {
+/// (`query_scalar_parser_tokens`-proven) coverage. Enum fields
+/// (cratestack#928) are included: `models.ts.j2`'s `EqualityFilter<V>` is
+/// already generic, so an enum field needs no new shared type, only
+/// `filter_type_name`'s enum branch below.
+fn is_filterable_scalar(field: &Field, enum_names: &BTreeSet<&str>) -> bool {
     matches!(
         field.ty.name.as_str(),
         "String" | "Cuid" | "Int" | "Float" | "Boolean" | "Uuid" | "DateTime" | "Decimal"
-    )
+    ) || enum_names.contains(field.ty.name.as_str())
 }
 
 /// The shared filter interface (hardcoded once in `models.ts.j2`/
 /// `swr/models-shared.ts.j2`, mirroring `Page`/`PageInfo`/`PageInput`)
-/// this field's operators live on.
-fn filter_type_name(field: &Field) -> &'static str {
+/// this field's operators live on. An enum field gets `EqualityFilter<V>`
+/// parameterized on its own generated union type directly — declaration
+/// order isn't a meaningful ordering (cratestack#928), so it deliberately
+/// gets the plain `EqualityFilter` (eq/ne/in/isNull), never
+/// `ComparableFilter` (which adds lt/lte/gt/gte).
+fn filter_type_name(field: &Field, enum_names: &BTreeSet<&str>) -> String {
+    if enum_names.contains(field.ty.name.as_str()) {
+        return format!("EqualityFilter<{}>", field.ty.name);
+    }
     match field.ty.name.as_str() {
         "String" | "Cuid" => "StringFilter",
         "Int" | "Float" => "NumberFilter",
@@ -35,6 +45,7 @@ fn filter_type_name(field: &Field) -> &'static str {
         "Decimal" => "DecimalFilter",
         other => unreachable!("{other} is not a filterable scalar — call site must gate first"),
     }
+    .to_owned()
 }
 
 /// `None` when the model has no filterable field at all — same
@@ -43,6 +54,7 @@ fn filter_type_name(field: &Field) -> &'static str {
 pub(crate) fn build_where_interface(
     model: &Model,
     model_names: &BTreeSet<&str>,
+    enum_names: &BTreeSet<&str>,
 ) -> Option<InterfaceView> {
     let fields = scalar_model_fields(model, model_names)
         .into_iter()
@@ -50,7 +62,7 @@ pub(crate) fn build_where_interface(
         // time, they never live in a column the server's `?where=` route
         // can query (`docs/design/computed-fields.md`).
         .filter(|field| !is_computed_field(field))
-        .filter(|field| is_filterable_scalar(field))
+        .filter(|field| is_filterable_scalar(field, enum_names))
         .collect::<Vec<_>>();
     if fields.is_empty() {
         return None;
@@ -63,7 +75,7 @@ pub(crate) fn build_where_interface(
             .map(|field| FieldView {
                 property: ts_identifier(&field.name),
                 wire_name: field.name.clone(),
-                type_name: filter_type_name(field).to_owned(),
+                type_name: filter_type_name(field, enum_names),
                 optional: true,
             })
             .collect(),

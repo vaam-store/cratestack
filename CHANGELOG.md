@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+### An enum-typed field is now a filterable query-filter scalar, not just a sortable one (#928)
+
+`query_scalar_parser_tokens` (`cratestack-macros`'s runtime value parser for `?field=value` /
+`field__op=value` query filters) matched on a fixed list of builtin scalar type names and fell into a
+`_ => return None` catch-all for anything else, and `generate_query_filter_arm` propagated that `None`
+with `?` on its very first line — so an enum-typed model field got no `eq`/`ne`/`in` match arm at all.
+The field stayed sortable (order-by generation never consulted this function), but any filter attempt
+on it 400'd with `unsupported query filter '<field>' for <Model>`, invisibly: nothing failed at
+schema-compile time, so the gap only showed up against a real running server.
+
+Fixed by treating a declared enum as a first-class filterable scalar: `query_scalar_parser_tokens`
+now recognizes an enum type name and parses the value through that enum's own generated `FromStr`
+impl, wrapped in the same `BadRequest` shape every other scalar parser here already uses. An unknown
+variant is rejected naming both the field and the accepted values (the enum's `FromStr` error text
+itself now lists every variant, `crates/cratestack-macros/src/types/enums.rs`) — closing the exact gap
+the issue called out: a rejection that used to fail invisibly with no indication of what values were
+valid. Ordering operators (`lt`/`gt`/`lte`/`gte`) stay unsupported for enum fields, unchanged from
+before this fix — declaration order is not a meaningful ordering to expose.
+
+Transport parity: RPC's `model.<Model>.list` synthesizes a REST-shaped query string from
+`RpcListInput.filters` and re-enters this exact same parsing path
+(`cratestack-axum/src/rpc/synthesize.rs`), so the fix applies to both transports from one change with
+no separate RPC-side code. Client parity: the generated Rust client's `<Model>Where` (already backed by
+the fully-generic `FieldFilterInput<V>`), the TypeScript client's `<Model>Where` (already backed by the
+generic `EqualityFilter<V>`/`ComparableFilter<V>`), and the Dart client's `<Model>Where` (which has no
+shared generic filter base — a new per-enum `{EnumName}Filter` data class is now generated alongside
+each schema enum) all now include enum-typed fields, matching what `<Model>SortField` already listed.
+
 ### The npm publish wrapper retried the wrong things, and a green exit code was not a publish
 
 v0.11.1 (run 33808402763's tag, release run 33808493207) landed during npm's "Intermittent Failures

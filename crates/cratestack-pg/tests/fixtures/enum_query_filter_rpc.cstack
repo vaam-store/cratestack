@@ -1,0 +1,26 @@
+transport rpc
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+// RPC-transport counterpart to `enum_query_filter.cstack` (cratestack#928):
+// RPC's `model.<Model>.list` synthesizes a URL query string from
+// `RpcListInput.filters` and re-enters the exact same
+// `parse_model_list_query`/`<model>_filter_expr` path REST uses
+// (`cratestack-axum/src/rpc/synthesize.rs`) — this fixture proves that
+// reuse actually closes the gap on this transport too, not just REST.
+// See `crates/cratestack-pg/tests/enum_query_filter_rpc.rs`.
+enum OrderState {
+  reserved
+  funded
+  cancelled
+}
+
+model Order {
+  id Int @id
+  state OrderState
+
+  @@allow("read", auth() != null)
+}

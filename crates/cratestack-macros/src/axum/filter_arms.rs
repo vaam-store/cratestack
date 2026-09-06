@@ -3,6 +3,8 @@
 //! pairs `(field_name, operator)` with a `FieldRef<...>` call on the
 //! per-field accessor in the field module.
 
+use std::collections::BTreeSet;
+
 use cratestack_core::{Field, TypeArity};
 use quote::quote;
 
@@ -10,17 +12,22 @@ use crate::shared::{
     ident, query_scalar_list_parser_tokens, query_scalar_parser_tokens, supports_comparison,
 };
 
+#[cfg(test)]
+mod tests;
+
 pub(super) fn generate_query_filter_arm(
     field_module_ident: &syn::Ident,
     field: &Field,
+    enum_names: &BTreeSet<&str>,
 ) -> Option<proc_macro2::TokenStream> {
     let field_name = &field.name;
     let field_fn = ident(&field.name);
-    let scalar_parser = query_scalar_parser_tokens(&field.ty, quote! { value }, field_name)?;
+    let scalar_parser =
+        query_scalar_parser_tokens(&field.ty, quote! { value }, field_name, enum_names)?;
     let mut arms = Vec::new();
 
     if field.ty.arity == TypeArity::Required {
-        let list_parser = query_scalar_list_parser_tokens(&field.ty, field_name)?;
+        let list_parser = query_scalar_list_parser_tokens(&field.ty, field_name, enum_names)?;
         arms.push(quote! {
             (#field_name, "eq") => {
                 let parsed = (#scalar_parser)?;

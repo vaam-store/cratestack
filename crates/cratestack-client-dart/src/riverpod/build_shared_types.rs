@@ -10,6 +10,7 @@ use std::collections::BTreeSet;
 use cratestack_core::Schema;
 
 use crate::builders::{build_data_class, build_enum_view};
+use crate::enum_filter_view::build_enum_filter_data_class;
 use crate::naming::{enum_name_set, model_name_set};
 use crate::riverpod::imports::{model_file_path, owned_type_decl_model_refs, render_import_lines};
 use crate::riverpod::partition::{Owner, TypePartition};
@@ -54,12 +55,21 @@ pub(crate) fn build_shared_types_file(
     }
     let referenced_models = owned_type_decl_model_refs(owned_type_decls, &model_names);
 
-    let enum_types = schema
+    let shared_enums = schema
         .enums
         .iter()
         .filter(|decl| *partition.enum_owner(&decl.name) == Owner::Shared)
+        .collect::<Vec<_>>();
+    let enum_types = shared_enums
+        .iter()
+        .copied()
         .map(build_enum_view)
         .collect::<Vec<_>>();
+    // One `{EnumName}Filter` class per shared-owned enum (cratestack#928)
+    // — same per-file pairing `build_model.rs` gives a model-owned enum.
+    for enum_decl in &shared_enums {
+        data_classes.push(build_enum_filter_data_class(enum_decl));
+    }
 
     let mut imports = referenced_models
         .into_iter()

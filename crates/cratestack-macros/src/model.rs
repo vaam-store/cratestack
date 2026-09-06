@@ -25,6 +25,7 @@ mod field_module;
 mod find_many_input;
 mod find_many_order_by;
 mod find_many_where;
+mod find_many_where_push;
 mod inputs;
 pub(crate) mod row_pg;
 pub(crate) mod row_sqlite;

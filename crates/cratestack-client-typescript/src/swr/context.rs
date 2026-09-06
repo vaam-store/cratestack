@@ -237,7 +237,7 @@ pub(crate) fn build_model_file_contexts(
             // construction (never cross-model), so they're inlined here
             // the same way `owned_enums`/`owned_interfaces` already are
             // — never imported.
-            let where_interface = build_where_interface(model, &model_names);
+            let where_interface = build_where_interface(model, &model_names, &enum_names);
             if let Some(where_interface) = where_interface.clone() {
                 owned_interfaces.push(where_interface);
             }
