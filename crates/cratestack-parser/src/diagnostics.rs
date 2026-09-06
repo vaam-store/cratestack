@@ -13,10 +13,12 @@ use cratestack_core::SourceSpan;
 /// Rather than thread a path through every one of those call sites for no
 /// behavioral gain, [`SchemaError::with_file`] is applied exactly once, at
 /// the boundary where a path *is* known (`parse_schema_named`,
-/// `parse_schema_diagnostics`, `parse_schema_file` in `lib.rs`) — so a
-/// `SchemaError` a caller can actually observe always carries real file
-/// identity, even though the type technically allows an empty one internally.
-#[derive(Debug, Clone, thiserror::Error)]
+/// `parse_schema_diagnostics`, `parse_schema_file`, `parse_schema_unvalidated`
+/// in `entry.rs`). Entry points that take no path tag the error with
+/// [`crate::ANONYMOUS_SCHEMA`] and the real source, so a rendered diagnostic
+/// always has a code frame — but only the `*_named`/`*_file` paths can name
+/// the actual file. Prefer those.
+#[derive(Clone, thiserror::Error)]
 #[error("{message}")]
 pub struct SchemaError {
     message: String,
@@ -24,6 +26,23 @@ pub struct SchemaError {
     line: usize,
     file: Arc<str>,
     source_text: Arc<str>,
+}
+
+impl std::fmt::Debug for SchemaError {
+    /// Deliberately omits `source_text`. A derived `Debug` prints the entire
+    /// schema file, so every `.unwrap()` panic on a `Result<_, SchemaError>`
+    /// and every `{:?}` log line would dump the whole `.cstack` — a silent
+    /// regression with no compile error to catch it. The byte length is
+    /// enough to tell "source attached" from "source missing".
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SchemaError")
+            .field("message", &self.message)
+            .field("span", &self.span)
+            .field("line", &self.line)
+            .field("file", &self.file)
+            .field("source_text_len", &self.source_text.len())
+            .finish()
+    }
 }
 
 impl SchemaError {
@@ -61,9 +80,11 @@ impl SchemaError {
         self.line
     }
 
-    /// The file this error belongs to — empty only for an error that was
-    /// never passed through [`Self::with_file`] (not reachable through any
-    /// public constructor; see the type's doc comment).
+    /// The file this error belongs to. Errors from the `*_named`/`*_file`
+    /// entry points carry the real path; those from the path-less entry
+    /// points carry [`crate::ANONYMOUS_SCHEMA`]. Empty only for an error
+    /// constructed internally and never passed through [`Self::with_file`],
+    /// which no public entry point returns.
     pub fn file(&self) -> &str {
         &self.file
     }

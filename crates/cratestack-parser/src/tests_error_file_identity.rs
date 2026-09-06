@@ -1,11 +1,39 @@
 //! `SchemaError` file identity (cratestack#916).
 //!
-//! Split out of `tests_multi_error.rs` (same feature area, but a distinct
-//! concern: that file's point is the *count* and *ordering* of collected
-//! errors, not which file each one thinks it came from) — also keeps
-//! `tests_multi_error.rs` under the 200-line ceiling.
+//! A sibling of `tests_multi_error.rs` (same feature area, distinct concern:
+//! that file's point is the *count* and *ordering* of collected errors, not
+//! which file each one thinks it came from).
+//!
+//! Assertions here strip ANSI escapes before matching. ariadne wraps every
+//! character of a rendered snippet in its own escape pair, so a plain
+//! `contains("identifier")` against a code frame is *always* false — which
+//! made an earlier version of these tests pass even with `source_text`
+//! hardcoded to the wrong file's text. See `strip_ansi` below.
 
 use crate::parse_schema_diagnostics;
+
+/// Remove ANSI SGR escape sequences so `contains` can see the rendered text.
+///
+/// Without this, every assertion below is vacuous: ariadne emits each
+/// snippet character wrapped in `\x1b[..m` pairs, so the literal identifier
+/// never appears as a contiguous substring, and `!rendered.contains("X")`
+/// holds no matter which source was resolved.
+fn strip_ansi(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars();
+    while let Some(ch) = chars.next() {
+        if ch == '\u{1b}' {
+            for escape in chars.by_ref() {
+                if escape.is_ascii_alphabetic() {
+                    break;
+                }
+            }
+        } else {
+            out.push(ch);
+        }
+    }
+    out
+}
 
 const THREE_UNKNOWN_TYPES: &str = r#"datasource db {
   provider = "postgresql"
@@ -60,18 +88,20 @@ fn errors_from_two_files_in_one_run_keep_their_own_file_and_source() {
     assert_eq!(combined[1].file(), "b.cstack");
 
     let rendered_a = combined[0].render();
+    let plain_a = strip_ansi(&rendered_a);
     let rendered_b = combined[1].render();
+    let plain_b = strip_ansi(&rendered_b);
 
     // Each rendering names its own file and quotes its own offending
     // identifier — proof that rendering resolved each error's *own* source,
     // not one ambient (path, source) pair shared across the whole run.
-    assert!(rendered_a.contains("a.cstack"), "{rendered_a}");
-    assert!(rendered_a.contains("Rolle"), "{rendered_a}");
-    assert!(!rendered_a.contains("b.cstack"), "{rendered_a}");
-    assert!(!rendered_a.contains("Statuss"), "{rendered_a}");
+    assert!(plain_a.contains("a.cstack"), "{plain_a}");
+    assert!(plain_a.contains("Rolle"), "{plain_a}");
+    assert!(!plain_a.contains("b.cstack"), "{plain_a}");
+    assert!(!plain_a.contains("Statuss"), "{plain_a}");
 
-    assert!(rendered_b.contains("b.cstack"), "{rendered_b}");
-    assert!(rendered_b.contains("Statuss"), "{rendered_b}");
-    assert!(!rendered_b.contains("a.cstack"), "{rendered_b}");
-    assert!(!rendered_b.contains("Rolle"), "{rendered_b}");
+    assert!(plain_b.contains("b.cstack"), "{plain_b}");
+    assert!(plain_b.contains("Statuss"), "{plain_b}");
+    assert!(!plain_b.contains("a.cstack"), "{plain_b}");
+    assert!(!plain_b.contains("Rolle"), "{plain_b}");
 }

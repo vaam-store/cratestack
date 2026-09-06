@@ -2,41 +2,36 @@
 
 ## Unreleased
 
-### `SchemaError` now carries file identity, and the CLI's `--format json` shape changed to match
+### `SchemaError` carries its own file, and `render()` lost its arguments — breaking (#916)
 
-`cratestack-parser`'s `SchemaError` previously had no idea which file it came from — `render(path,
-source)` took both as caller-supplied arguments, so an error was only ever attributable because the
-caller happened to remember what it had just parsed. That made multi-file diagnostics (`part`,
-`import` — cratestack#910/#911) impossible: nothing tied an error to a file once more than one was in
-play. `SchemaError` now tags itself with its file and that file's source the moment
-`parse_schema_named`/`parse_schema_diagnostics`/`parse_schema_file` produce it, exposed via a new
-`SchemaError::file()` accessor, and `render()` takes **no arguments** — it resolves its own file's
-source instead of trusting an ambient `(path, source)` pair a caller could (and, before more than one
-file existed, always did) supply correctly only by construction. `cratestack-cli`, `cratestack-macros`,
-and `cratestack-studio`'s call sites were updated to match; single-file diagnostic output is
-byte-identical to before (proved via a before/after comparison, not just re-reading the code).
+`SchemaError` held `message`, `span` and `line` but no file, and `render(path, source)`
+took the pair as arguments. Nothing tied that pair to the error: a caller could hand any
+source to any error and get a plausible-looking report, which is exactly the failure mode
+multi-file schemas would have made routine.
 
-**Breaking, JSON-consuming tooling:** `cratestack check --format json`'s failure shape gained a `file`
-key per diagnostic entry:
+The error now carries `file` and `source_text`, applied at the entry points in `entry.rs`,
+and `render()` takes no arguments.
 
-```jsonc
-{
-  "ok": false,
-  "schema": "path/to/schema.cstack",
-  "diagnostics": [
-    {
-      "message": "...",
-      "file": "path/to/schema.cstack",   // new
-      "line": 3,
-      "start": 12,
-      "end": 18
-    }
-  ]
-}
-```
+**Breaking, and wider than one crate.** `SchemaError` is re-exported from `cratestack-pg`,
+`cratestack-api` and `cratestack-sqlite`, so a consumer on the documented
+`cratestack = { package = "cratestack-pg" }` path who calls `error.render(path, source)`
+gets a compile error. The fix is to drop both arguments; if you were passing a path you
+knew, parse with `parse_schema_named` instead of `parse_schema` so the error carries it.
 
-Actually parsing several files in one run is still out of scope here (cratestack#918, cratestack#920)
-— this only makes the error type capable of describing that once it lands.
+**Diagnostic output is byte-identical for `parse_schema_named` and `parse_schema_file`** —
+verified by rendering 13 schemas × 5 paths through both entry points on both trees and
+comparing SHA-256. It is *not* identical for the anonymous `parse_schema`: that path now
+renders `<schema>` where a caller previously supplied their own path at render time. This
+is the one behavioural regression in the change, and it is why `cratestack-studio` moved to
+`parse_schema_named`.
+
+The CLI's `--format json` diagnostics gain a `file` key. Purely additive — every existing
+key keeps its value and type.
+
+`Debug` for `SchemaError` is now hand-written rather than derived, and prints
+`source_text_len` instead of the source. A derived `Debug` would dump the entire `.cstack`
+file into every `.unwrap()` panic and every `{:?}` log line, with no compile error to warn
+anyone it had started happening.
 
 ### The npm publish wrapper retried the wrong things, and a green exit code was not a publish
 

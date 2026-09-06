@@ -11,20 +11,25 @@ use std::sync::Arc;
 
 use crate::{SchemaError, parse, validate};
 
+/// File identity used when a caller parses a schema with no path to give.
+/// Prefer [`parse_schema_named`] whenever a path is known: it is what makes
+/// a rendered diagnostic name the file.
+pub const ANONYMOUS_SCHEMA: &str = "<schema>";
+
 pub fn parse_schema(source: &str) -> Result<cratestack_core::Schema, SchemaError> {
-    parse_schema_named("<schema>", source)
+    parse_schema_named(ANONYMOUS_SCHEMA, source)
 }
 
 pub fn parse_schema_named(
     path: &str,
     source: &str,
 ) -> Result<cratestack_core::Schema, SchemaError> {
-    let file: Arc<str> = Arc::from(path);
-    let source_arc: Arc<str> = Arc::from(source);
-    let schema =
-        parse::parse_schema_only(source).map_err(|error| error.with_file(&file, &source_arc))?;
-    validate::validate_schema(path, source, &schema)
-        .map_err(|error| error.with_file(&file, &source_arc))?;
+    // Allocated inside `map_err` rather than up front: a successful parse —
+    // the overwhelmingly common case, and the one a proc macro hits on every
+    // expansion — should not heap-copy the whole schema text just to drop it.
+    let tag = |error: SchemaError| error.with_file(&Arc::from(path), &Arc::from(source));
+    let schema = parse::parse_schema_only(source).map_err(tag)?;
+    validate::validate_schema(path, source, &schema).map_err(tag)?;
     Ok(schema)
 }
 
@@ -97,7 +102,13 @@ pub fn parse_schema_diagnostics(
 ///    time, but still real input to the Postgres emitter via a pre-#236
 ///    snapshot).
 pub fn parse_schema_unvalidated(source: &str) -> Result<cratestack_core::Schema, SchemaError> {
+    // Tagged like `parse_schema`: this entry point takes no path, so the
+    // placeholder is the honest answer — but the error still carries the
+    // source, so `render()` produces a real code frame instead of a bare
+    // message. Before this, the only public route to an untagged error
+    // rendered as 36 bytes with no file, line, or excerpt.
     parse::parse_schema_only(source)
+        .map_err(|error| error.with_file(&Arc::from(ANONYMOUS_SCHEMA), &Arc::from(source)))
 }
 
 pub fn parse_schema_file(path: impl AsRef<Path>) -> Result<cratestack_core::Schema, SchemaError> {

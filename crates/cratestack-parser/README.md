@@ -36,7 +36,7 @@ model Post {
 }
 "#;
 
-let schema = parse_schema(source)?;
+let schema = parse_schema_named("schema.cstack", source)?;
 ```
 
 ### Parse from a file
@@ -63,7 +63,7 @@ ariadne-rendered report:
 ```rust
 use cratestack_parser::{SchemaError, parse_schema};
 
-match parse_schema(source) {
+match parse_schema_named("schema.cstack", source) {
     Ok(schema) => { /* ... */ }
     Err(error) => {
         eprintln!("{}", error.message());
