@@ -30,8 +30,9 @@ use super::find_many_where::generate_where_struct;
 pub(crate) fn generate_find_many_types(
     model: &Model,
     model_names: &BTreeSet<&str>,
+    enum_names: &BTreeSet<&str>,
 ) -> proc_macro2::TokenStream {
-    let where_types = generate_where_struct(model, model_names);
+    let where_types = generate_where_struct(model, model_names, enum_names);
     let order_by_types = generate_order_by_types(model, model_names);
 
     let find_many_ident = ident(&format!("{}FindManyInput", model.name));
@@ -76,8 +77,9 @@ pub(crate) fn generate_find_many_types(
 pub(crate) fn generate_find_many_input(
     model: &Model,
     model_names: &BTreeSet<&str>,
+    enum_names: &BTreeSet<&str>,
 ) -> Result<proc_macro2::TokenStream, String> {
-    let types = generate_find_many_types(model, model_names);
+    let types = generate_find_many_types(model, model_names, enum_names);
 
     let find_many_ident = ident(&format!("{}FindManyInput", model.name));
     let query_fn_ident = ident(&format!(

@@ -11,9 +11,12 @@ use crate::naming::{occupied_type_names, package_class_stem, to_pascal_case};
 use crate::package_deps::{
     DependencyEntry, dependencies_for, dev_dependencies_for, peer_dependencies_for,
 };
-use crate::package_floors::{CRATESTACK_CBOR_FLOOR, CRATESTACK_REFINE_FLOOR, requirement};
+use crate::package_floors::{
+    CRATESTACK_ADAPTER_RTK_FLOOR, CRATESTACK_CBOR_FLOOR, CRATESTACK_REFINE_FLOOR, requirement,
+};
 use crate::procedure_views::{ProcedureView, build_procedure};
 use crate::refine::{RefineResourceView, build_refine_resources, refine_resource_map_type};
+use crate::rtk::collisions::reject_rtk_endpoint_name_collisions;
 use crate::tanstack_collisions::reject_tanstack_hook_name_collisions;
 use crate::types::{
     enum_name_set, is_computed_field, is_generated_on_create, is_primary_key, model_allows_create,
@@ -89,6 +92,19 @@ pub(crate) struct TemplateContext {
     /// doc comments for why). `src/react-query.ts` itself is gated by spec
     /// selection (`crate::templates::specs`), not by this field.
     tanstack: bool,
+    /// Issue #906 (`--rtk`). Mirrors `TypeScriptGeneratorConfig::rtk`, and
+    /// is read by the two `*-index.ts.j2` templates (gates the
+    /// `./rtk-api.js` re-export) — `package.json.j2` reads
+    /// `peer_dependencies`/`dev_dependencies` instead. `src/rtk-api.ts`
+    /// itself is gated by spec selection (`crate::templates::specs`), not
+    /// by this field.
+    rtk: bool,
+    /// The semver range the generated `package.json` declares for
+    /// `@cratestack/adapter-rtk` under `--rtk` on an RPC-transport schema.
+    /// Empty when `rtk` is off or the schema is REST transport — see
+    /// `crate::rtk`'s module doc for why REST never depends on the
+    /// adapter package at all.
+    rtk_adapter_version_requirement: String,
     /// `package.json.j2`'s `peerDependencies` entries, joined by a
     /// `{% for %}` loop in the template rather than nested `{% if %}`
     /// blocks — see `crate::package_deps`'s module doc for why issue #617
@@ -238,7 +254,7 @@ pub(crate) fn build_template_context(
             ));
         }
 
-        let where_interface = build_where_interface(model, &model_names);
+        let where_interface = build_where_interface(model, &model_names, &enum_names);
         if let Some(where_interface) = where_interface.clone() {
             interfaces.push(where_interface);
         }
@@ -283,7 +299,9 @@ pub(crate) fn build_template_context(
     let procedures = schema
         .procedures
         .iter()
-        .map(|procedure| build_procedure(procedure, &occupied_type_names, &enum_names))
+        .map(|procedure| {
+            build_procedure(procedure, &occupied_type_names, &enum_names, &model_names)
+        })
         .collect::<Vec<_>>();
     // Explicit `::<Vec<_>>` (cratestack#802): these used to infer their
     // type solely from `TemplateContext`'s field, which stops working the
@@ -313,6 +331,13 @@ pub(crate) fn build_template_context(
     } else {
         String::new()
     };
+    // `@cratestack/adapter-rtk` is an RPC-only dependency (`crate::rtk`'s
+    // module doc) — empty on REST regardless of `config.rtk`.
+    let rtk_adapter_version_requirement = if config.rtk && is_rpc_transport {
+        requirement(CRATESTACK_ADAPTER_RTK_FLOOR)
+    } else {
+        String::new()
+    };
 
     // cratestack#802: refuse a schema whose `--tanstack` procedure hook
     // name collides with a derived model hook name, before any file is
@@ -324,6 +349,10 @@ pub(crate) fn build_template_context(
     // fields.
     if config.tanstack {
         reject_tanstack_hook_name_collisions(&models, &query_procedures, &mutation_procedures)?;
+    }
+    // cratestack#906: the `--rtk` analogue, same reasoning and placement.
+    if config.rtk {
+        reject_rtk_endpoint_name_collisions(&models, &procedures)?;
     }
 
     Ok(TemplateContext {
@@ -355,8 +384,18 @@ pub(crate) fn build_template_context(
         },
         swr: config.swr,
         tanstack: config.tanstack,
-        peer_dependencies: peer_dependencies_for(config, &refine_version_requirement),
-        dev_dependencies: dev_dependencies_for(config, &refine_version_requirement),
+        rtk: config.rtk,
+        rtk_adapter_version_requirement: rtk_adapter_version_requirement.clone(),
+        peer_dependencies: peer_dependencies_for(
+            config,
+            &refine_version_requirement,
+            &rtk_adapter_version_requirement,
+        ),
+        dev_dependencies: dev_dependencies_for(
+            config,
+            &refine_version_requirement,
+            &rtk_adapter_version_requirement,
+        ),
         dependencies: dependencies_for(config, is_rpc_transport, &native_cbor_version_requirement),
         native_cbor: config.native_cbor,
         native_cbor_version_requirement,

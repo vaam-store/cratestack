@@ -1,0 +1,17 @@
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+enum OrderState {
+  reserved
+  funded
+  cancelled
+}
+
+model Order {
+  id Int @id
+  state OrderState
+
+  @@allow("read", true)
+}

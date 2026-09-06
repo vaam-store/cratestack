@@ -30,11 +30,7 @@ pub(super) fn parse_schema_literal(
     let schema = cratestack_parser::parse_schema_named(&resolved.display().to_string(), &source)
         .map_err(|error| {
             TokenStream::from(
-                syn::Error::new(
-                    schema_path.span(),
-                    error.render(&resolved.display().to_string(), &source),
-                )
-                .to_compile_error(),
+                syn::Error::new(schema_path.span(), error.render()).to_compile_error(),
             )
         })?;
 

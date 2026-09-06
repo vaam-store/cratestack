@@ -68,8 +68,9 @@ procedure placeholder(orderId: String): String
 #[test]
 fn model_crud_and_procedure_handlers_share_an_emitted_fn_name() {
     let model = order_model("Order");
-    let model_handlers = generate_model_axum_handlers(&model, std::slice::from_ref(&model))
-        .expect("model handler emission should succeed");
+    let model_handlers =
+        generate_model_axum_handlers(&model, std::slice::from_ref(&model), &BTreeSet::new())
+            .expect("model handler emission should succeed");
     let procedure_handler =
         generate_procedure_axum_handler(&procedure("getOrder"), &BTreeSet::new())
             .expect("procedure handler emission should succeed");
@@ -97,8 +98,9 @@ fn model_crud_and_procedure_handlers_share_an_emitted_fn_name() {
 #[test]
 fn a_renamed_procedure_shares_no_emitted_fn_name() {
     let model = order_model("Order");
-    let model_handlers = generate_model_axum_handlers(&model, std::slice::from_ref(&model))
-        .expect("model handler emission should succeed");
+    let model_handlers =
+        generate_model_axum_handlers(&model, std::slice::from_ref(&model), &BTreeSet::new())
+            .expect("model handler emission should succeed");
     let procedure_handler =
         generate_procedure_axum_handler(&procedure("orderDetail"), &BTreeSet::new())
             .expect("procedure handler emission should succeed");

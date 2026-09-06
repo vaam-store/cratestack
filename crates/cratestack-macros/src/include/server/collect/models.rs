@@ -91,7 +91,7 @@ pub(super) fn collect_models(
     let find_many_input_structs = schema
         .models
         .iter()
-        .map(|model| generate_find_many_input(model, model_name_set))
+        .map(|model| generate_find_many_input(model, model_name_set, enum_name_set))
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| compile_error(schema_path, e))?;
     let accessors = schema.models.iter().map(generate_model_accessor).collect();
@@ -103,7 +103,7 @@ pub(super) fn collect_models(
     let axum_handler_defs = schema
         .models
         .iter()
-        .map(|model| generate_model_axum_handlers(model, &schema.models))
+        .map(|model| generate_model_axum_handlers(model, &schema.models, enum_name_set))
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| compile_error(schema_path, e))?;
     let axum_routes = schema

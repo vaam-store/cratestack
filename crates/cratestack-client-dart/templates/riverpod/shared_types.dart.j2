@@ -44,7 +44,8 @@ part 'shared_types.mapper.dart';
 // doc). An unconditional directive here was a real `flutter analyze
 // --fatal-warnings` `uri_has_not_been_generated` failure on the common
 // case of a schema whose partition assigns nothing to `Owner::Shared`
-// (e.g. `ci_rpc.cstack`).
+// (e.g. `tests/fixtures/no_shared_types.cstack` — `ci_rpc.cstack` was the
+// exemplar until cratestack#928 gave every enum a filter class).
 part '{{ builder_part_file_name }}';
 {% endif %}
 

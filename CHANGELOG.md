@@ -2,6 +2,136 @@
 
 ## Unreleased
 
+### `SchemaError` carries its own file, and `render()` lost its arguments — breaking (#916)
+
+`SchemaError` held `message`, `span` and `line` but no file, and `render(path, source)`
+took the pair as arguments. Nothing tied that pair to the error: a caller could hand any
+source to any error and get a plausible-looking report, which is exactly the failure mode
+multi-file schemas would have made routine.
+
+The error now carries `file` and `source_text`, applied at the entry points in `entry.rs`,
+and `render()` takes no arguments.
+
+**Breaking, and wider than one crate.** `SchemaError` is re-exported from `cratestack-pg`,
+`cratestack-api` and `cratestack-sqlite`, so a consumer on the documented
+`cratestack = { package = "cratestack-pg" }` path who calls `error.render(path, source)`
+gets a compile error. The fix is to drop both arguments; if you were passing a path you
+knew, parse with `parse_schema_named` instead of `parse_schema` so the error carries it.
+
+**Diagnostic output is byte-identical for `parse_schema_named` and `parse_schema_file`** —
+verified by rendering 13 schemas × 5 paths through both entry points on both trees and
+comparing SHA-256. It is *not* identical for the two path-less entry points. `parse_schema` and
+`parse_schema_unvalidated` now render `<schema>` where a caller previously supplied their
+own path at render time. That is the behavioural cost of making the error self-describing,
+and it is why `cratestack-studio` moved to `parse_schema_named`. If you were passing a path
+you knew, parse with `parse_schema_named` and the error carries it.
+
+`ANONYMOUS_SCHEMA` is exported so a consumer can recognise that placeholder
+(`error.file() == cratestack_parser::ANONYMOUS_SCHEMA`) instead of hardcoding the string.
+
+The CLI's `--format json` diagnostics gain a `file` key. Purely additive — every existing
+key keeps its value and type.
+
+`Debug` for `SchemaError` is now hand-written rather than derived, and prints
+`source_text_len` instead of the source. A derived `Debug` would dump the entire `.cstack`
+file into every `.unwrap()` panic and every `{:?}` log line, with no compile error to warn
+anyone it had started happening.
+
+### `generate-typescript --rtk`: a generated RTK Query endpoint set, with invalidation tags derived from the schema
+
+`@cratestack/adapter-rtk` has shipped `createRpcBaseQuery` (an RTK Query `BaseQueryFn` over the
+generated RPC client) since the `@cratestack/api` package split, but its own README stated the gap
+plainly: no fully-generated endpoint set existed, unlike the `rpc-react-query.ts.j2`/
+`rest-react-query.ts.j2` hooks `--tanstack` already generates. `--rtk` (`crates/cratestack-client-typescript`)
+closes it: `src/rtk-api.ts` exports `createCratestackRtkApi(client)`, a typed `createApi` with one
+endpoint per model CRUD operation and per `procedure`/`mutation procedure`, on both REST and RPC
+transports.
+
+The two transports dispatch differently, on purpose — `@cratestack/adapter-rtk`'s `createRpcBaseQuery`
+is inherently RPC-only (it adapts an opId-addressed `RpcCaller.call()`, which REST has no equivalent
+of). RPC endpoints call the RESOLVED base query from inside `queryFn` (RTK Query's documented 4th
+`queryFn` argument) so the wire response can still be revived through `reviveWireFields`/
+`revivePagedWireFields` — the adapter's raw `call()` return has no `Decimal`/`Bytes` revival, and
+skipping that step would type-check while shipping the wrong runtime shape. REST endpoints use RTK
+Query's `fakeBaseQuery()` placeholder and call this same generated package's own REST client methods
+from `queryFn` — never a second transport implementation on either side.
+
+The part with real value: `providesTags`/`invalidatesTags` for the five model CRUD endpoints follow
+RTK Query's own documented tagging convention, but a `procedure`'s tags are DERIVED FROM THE SCHEMA —
+`crate::rtk::touch::touched_model_names` walks a procedure's own `args`/`return_type` (recursing
+through `Page<T>`/`FindMany<T>`) and turns the models it finds into that procedure's tag list. A
+mutation invalidating a bystander model it never mentions, or missing one it does, is exactly the
+class of stale-UI bug hand-maintained invalidation produces — `tests/rtk_tag_derivation.rs` proves
+the derived tags match a real mutation's real touched models, both transports, with a deliberately
+broken derivation confirmed to fail that test first.
+
+RTK Query's endpoint map is a single object literal, which makes a procedure/model name collision a
+same-object duplicate key (`ts(1117)`) rather than the barrel-level `TS2308` `--swr` guards against —
+`crate::rtk::naming` derives model endpoint keys from the RAW model name (`list{Model}`, never
+pluralized, unlike `--swr`'s `model_fn_names`), which makes a model-vs-model collision structurally
+impossible; `crate::rtk::collisions` still refuses the one collision that remains reachable
+(procedure vs. model), the same posture `crate::tanstack_collisions` established.
+
+Real `tsc` proof, not just source assertions: `tests/rtk_typecheck.rs` does a genuine `npm install` +
+`npm run build` against both transports' generated output. It surfaced two real defects fixed here —
+a `providesTags` map callback whose explicit parameter type was narrower than the actual (partial-
+selection-optional) model field type, and a currently-published npm defect unrelated to this
+change (`@cratestack/adapter-rtk@0.11.1` depends on an exact `@cratestack/ts-types@0.11.1` that was
+never published; `0.11.0` correctly depended on `ts-types@0.11.0`) — the RPC test retries pinned to
+that last known-good version rather than silently skipping, so it still proves the real claim.
+
+Purely additive, composing freely with `--swr`/`--refine`/`--tanstack` and every transport: every
+other emitted file is byte-identical with and without `--rtk`.
+
+### An enum-typed field is now a filterable query-filter scalar, not just a sortable one (#928)
+
+`query_scalar_parser_tokens` (`cratestack-macros`'s runtime value parser for `?field=value` /
+`field__op=value` query filters) matched on a fixed list of builtin scalar type names and fell into a
+`_ => return None` catch-all for anything else, and `generate_query_filter_arm` propagated that `None`
+with `?` on its very first line — so an enum-typed model field got no `eq`/`ne`/`in` match arm at all.
+The field stayed sortable (order-by generation never consulted this function), but any filter attempt
+on it 400'd with `unsupported query filter '<field>' for <Model>`, invisibly: nothing failed at
+schema-compile time, so the gap only showed up against a real running server.
+
+Fixed by treating a declared enum as a first-class filterable scalar: `query_scalar_parser_tokens`
+now recognizes an enum type name and parses the value through that enum's own generated `FromStr`
+impl, wrapped in the same `BadRequest` shape every other scalar parser here already uses. An unknown
+variant is rejected naming both the field and the accepted values (the enum's `FromStr` error text
+itself now lists every variant, `crates/cratestack-macros/src/types/enums.rs`) — closing the exact gap
+the issue called out: a rejection that used to fail invisibly with no indication of what values were
+valid. Ordering operators (`lt`/`gt`/`lte`/`gte`) stay unsupported for enum fields, unchanged from
+before this fix — declaration order is not a meaningful ordering to expose.
+
+Transport parity: RPC's `model.<Model>.list` synthesizes a REST-shaped query string from
+`RpcListInput.filters` and re-enters this exact same parsing path
+(`cratestack-axum/src/rpc/synthesize.rs`), so the fix applies to both transports from one change with
+no separate RPC-side code. Client parity: the generated Rust client's `<Model>Where` (already backed by
+the fully-generic `FieldFilterInput<V>`), the TypeScript client's `<Model>Where` (already backed by the
+generic `EqualityFilter<V>`/`ComparableFilter<V>`), and the Dart client's `<Model>Where` (which has no
+shared generic filter base — a new per-enum `{EnumName}Filter` data class is now generated alongside
+each schema enum) all now include enum-typed fields, matching what `<Model>SortField` already listed.
+
+**Optional enum fields remain unfilterable.** `state OrderState?` still returns
+`400 unsupported query filter` on every operator, because `filter_arms.rs` gates
+`eq`/`ne`/`in` on `TypeArity::Required` — pre-existing behaviour for all optional
+scalars, not introduced here. It is called out because #928's motivating list
+(refund status, KYC status, vendor status) is full of plausibly-nullable enums,
+and because the typed Rust `<Model>Where` path is deliberately *not* arity-gated,
+so the two surfaces disagree here.
+
+That disagreement is **not** enum-specific, and an earlier draft of this entry
+said it was. It already holds for every optional scalar — `title String?` gets a
+`FieldFilterInput<String>` in the typed `Where` and 400s on the untyped route —
+and it holds for the Dart and TypeScript clients too, whose `is_filterable_scalar`
+matches on type name with no arity check. Whether shipping with nullable status
+enums unfilterable is acceptable is a maintainer call.
+
+`SqlValue` is now exported from `cratestack-client`. It is
+`IntoSqlValue::into_sql_value`'s return type, and exporting the trait without it
+left the trait unimplementable by generated code in that facade — which is what
+broke `include_client_schema!` above. `cratestack-pg`, `-api` and `-sqlite` all
+already exported it; `cratestack-client` was the sole outlier.
+
 ### The Rust client's HTTP transport is pluggable, so retries and tracing no longer need a fork
 
 `CratestackClient` hardcoded `reqwest::Client`. Both constructors (`new`,
@@ -149,6 +279,48 @@ otherwise) and round-trips it as a nested object, `null` included.
 
 Closes #909.
 
+### A roadmap, and a recorded decision not to add SeaORM or Diesel
+
+There was no roadmap — no `ROADMAP.md`, no milestones, four open issues. The
+direction existed but was scattered across four places a newcomer would never
+assemble: the one open epic and its slices, ADR status fields (0016 sits at
+*Proposed*), ADR 0001's reserved-but-unwritten 0006-0010 range, and design docs
+specifying things not yet built. `rpc-transport.md` §4 specified `OpExecutor` on
+2026-05-15 and `layering.md` §2 called L3 "the one layer with no members" for
+three months before ADR 0015 settled building it — that gap was invisible unless
+you already knew where to look.
+
+`ROADMAP.md` now assembles all four, plus a shipped-capability table (the
+changelog is 7,000 lines and answers "what exists?" badly), the OpExecutor slice
+status, and the open maintainer decisions marked rather than resolved.
+
+It also records a decision, so it stops being re-proposed. **SeaORM and Diesel
+were both evaluated as additional SQL engines and both rejected.** SeaORM is
+built on top of sqlx, so it adds a layer above the driver already in use — no new
+database, no new driver — and its entity codegen competes directly with what
+`cratestack-macros` generates from `.cstack`. Diesel is a genuinely different
+stack, but its value is a compile-time query DSL, and CrateStack renders SQL as
+strings through `cratestack-sql` + `Dialect`; adopting it means bypassing the
+DSL and keeping Diesel as a connection pool.
+
+The demand behind "more engines" is MySQL/MariaDB and server-side SQLite, which
+sqlx already drives — and which the macro's own error message has promised. The
+coupling was measured rather than estimated: 760 of ~886 `sqlx::` references sit
+inside `cratestack-sqlx`, `cratestack-sql` is genuinely agnostic (its only two
+`sqlx` mentions are doc comments), but `cratestack-macros` emits `FromRow<'_,
+PgRow>`/`sqlx::Row`/`PgPool` across 10 files, and the SQL carries 83 `RETURNING`,
+43 `ON CONFLICT` and 17 `MATERIALIZED` — none of which MySQL supports as written.
+The `Dialect` trait is one method wide today, which is evidence the job hasn't
+started rather than that it is nearly done.
+
+Three capability gaps are named honestly after reviewing what comparable
+schema-first frameworks ship: polymorphism/model inheritance (the largest —
+`mixin` is field reuse, not a type hierarchy), OpenAPI emission, and client
+capability slicing. Most of the rest of that comparison was already shipped here.
+
+The road to 1.0 is left blank on purpose. There is no written definition of what
+1.0 means, and inventing one is not a documentation change.
+
 ## 0.11.1 (2026-09-03)
 
 ### Procedures and auth providers are plain `async fn` — in every example, and in the trait docs
@@ -179,7 +351,6 @@ That document is the wider frame: a Spring-Boot-shaped, compile-time-only applic
 CrateStack (one-line boot, typed config, health, declared cross-cutting concerns, test client,
 scaffolder), each piece tested against ADR 0012 and refused where it would need a proxy or a registry.
 This is its phase 1; phases 2–3 wait on the document's §8 decisions.
-
 ### A beginner on-ramp, and a README that stops describing itself by comparison
 
 The repository had three issue forms, all of them internal planning forms. Epic, User Story and

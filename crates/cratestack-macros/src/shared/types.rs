@@ -1,9 +1,12 @@
 //! Rust-type token generation + scalar parser tokens used by route
 //! handlers when decoding query parameters.
 
+use std::collections::BTreeSet;
+
 use cratestack_core::{Field, TypeArity, TypeRef};
 use quote::quote;
 
+use super::enum_query_parser::query_enum_parser_tokens;
 use super::{doc_attrs, ident};
 
 #[cfg(test)]
@@ -114,7 +117,16 @@ pub(crate) fn query_scalar_parser_tokens(
     ty: &TypeRef,
     value_expr: proc_macro2::TokenStream,
     field_name: &str,
+    enum_names: &BTreeSet<&str>,
 ) -> Option<proc_macro2::TokenStream> {
+    // Issue #928: an enum-typed field is a first-class query-filter
+    // scalar too — checked ahead of the fixed catch-all match below
+    // since `ty.name` is schema-authored and can't collide with one of
+    // the builtin scalar names matched there.
+    if enum_names.contains(ty.name.as_str()) {
+        return Some(query_enum_parser_tokens(ty, value_expr, field_name));
+    }
+
     Some(match ty.name.as_str() {
         "String" => quote! { Ok((#value_expr).to_owned()) },
         "Cuid" => quote! { ::cratestack::parse_cuid(#value_expr) },
@@ -161,8 +173,10 @@ pub(crate) fn query_scalar_parser_tokens(
 pub(crate) fn query_scalar_list_parser_tokens(
     ty: &TypeRef,
     field_name: &str,
+    enum_names: &BTreeSet<&str>,
 ) -> Option<proc_macro2::TokenStream> {
-    let scalar_parser = query_scalar_parser_tokens(ty, quote! { raw_value }, field_name)?;
+    let scalar_parser =
+        query_scalar_parser_tokens(ty, quote! { raw_value }, field_name, enum_names)?;
 
     Some(quote! {{
         let parsed = value

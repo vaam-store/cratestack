@@ -1,0 +1,200 @@
+import { createApi, fakeBaseQuery } from "@reduxjs/toolkit/query/react";
+import type { {{ client_class_name }} } from "./client.js";
+import { CratestackHttpError } from "./runtime.js";
+import type {
+{% for interface in interfaces %}
+  {{ interface.name }},
+{% endfor %}
+{% for enum in enums %}
+  {{ enum.name }},
+{% endfor %}
+  Page,
+} from "./models.js";
+import type { CratestackQueryRequestConfig } from "./queries.js";
+
+/**
+ * The error shape every `--rtk` REST endpoint's `queryFn` returns on
+ * failure. There is no REST equivalent of `@cratestack/adapter-rtk` to
+ * dispatch through (that package's `createRpcBaseQuery` is inherently
+ * RPC-only — see `crate::rtk`'s module doc) — `baseQuery: fakeBaseQuery()`
+ * below is RTK Query's own documented placeholder for "every endpoint
+ * uses `queryFn`", and every `queryFn` here calls THIS SAME generated
+ * package's own REST client methods (`./client.js`), never a second
+ * transport implementation.
+ */
+export interface RtkRestQueryError {
+  status: number | "FETCH_ERROR";
+  error: string;
+  data?: unknown;
+}
+
+function toRtkRestError(error: unknown): RtkRestQueryError {
+  if (error instanceof CratestackHttpError) {
+    return { status: error.status, error: error.message, data: error.payload };
+  }
+  return {
+    status: "FETCH_ERROR",
+    error: error instanceof Error ? error.message : String(error),
+  };
+}
+
+/**
+ * A typed RTK Query `createApi` endpoint set over this schema's generated
+ * REST client — one entry per model operation and per `procedure`
+ * (issue #906). `providesTags`/`invalidatesTags` are DERIVED FROM THE
+ * SCHEMA: the five model CRUD tags follow RTK Query's own documented
+ * convention, and every `procedure`'s tags are exactly the models its own
+ * `args`/return type reference (`crate::rtk::touch::touched_model_names`
+ * at generation time) — never hand-written.
+ */
+export function createCratestackRtkApi(
+  client: {{ client_class_name }},
+  options: { reducerPath?: string } = {},
+) {
+  return createApi({
+    reducerPath: options.reducerPath ?? "cratestackApi",
+    baseQuery: fakeBaseQuery<RtkRestQueryError>(),
+    tagTypes: [
+{% for model in models %}
+      "{{ model.name }}",
+{% endfor %}
+    ] as const,
+    endpoints: (builder) => ({
+{% for model in models %}
+{% if model.allows_list %}
+      {{ model.rtk_list_key }}: builder.query<{{ model.list_return_type }}, CratestackQueryRequestConfig | void>({
+        queryFn: async (config) => {
+          try {
+            return { data: await client.{{ model.accessor }}.list(config ?? {}) };
+          } catch (error) {
+            return { error: toRtkRestError(error) };
+          }
+        },
+        providesTags: (result) =>
+          result
+            ? [
+                // `item.{{ model.primary_key_name }}` is typed optional on this
+                // interface (`InterfaceKind::Model` forces every field
+                // optional to account for partial `fields`/`include`
+                // projection on the wire) — the `as` here asserts what is
+                // true for any `list()` call that doesn't explicitly
+                // narrow `fields` to exclude the primary key, which is
+                // the overwhelmingly common case a per-item cache tag is
+                // useful for at all.
+                ...({% if model.is_paged %}result.items{% else %}result{% endif %}).map((item) => ({
+                  type: "{{ model.name }}" as const,
+                  id: item.{{ model.primary_key_name }} as {{ model.primary_key_type }},
+                })),
+                { type: "{{ model.name }}" as const, id: "LIST" },
+              ]
+            : [{ type: "{{ model.name }}" as const, id: "LIST" }],
+      }),
+{% endif %}
+{% if model.allows_get %}
+      {{ model.rtk_get_key }}: builder.query<{{ model.name }}, {{ model.primary_key_type }}>({
+        queryFn: async (id) => {
+          try {
+            return { data: await client.{{ model.accessor }}.get(id) };
+          } catch (error) {
+            return { error: toRtkRestError(error) };
+          }
+        },
+        providesTags: (_result, _error, id) => [{ type: "{{ model.name }}" as const, id }],
+      }),
+{% endif %}
+{% if model.allows_create %}
+      {{ model.rtk_create_key }}: builder.mutation<{{ model.name }}, {{ model.create_input_name }}>({
+        queryFn: async (input) => {
+          try {
+            return { data: await client.{{ model.accessor }}.create(input) };
+          } catch (error) {
+            return { error: toRtkRestError(error) };
+          }
+        },
+        invalidatesTags: [{ type: "{{ model.name }}" as const, id: "LIST" }],
+      }),
+{% endif %}
+{% if model.allows_update %}
+      {{ model.rtk_update_key }}: builder.mutation<{{ model.name }}, { id: {{ model.primary_key_type }}; input: {{ model.update_input_name }} }>({
+        queryFn: async ({ id, input }) => {
+          try {
+            return { data: await client.{{ model.accessor }}.update(id, input) };
+          } catch (error) {
+            return { error: toRtkRestError(error) };
+          }
+        },
+        invalidatesTags: (_result, _error, arg) => [
+          { type: "{{ model.name }}" as const, id: arg.id },
+          { type: "{{ model.name }}" as const, id: "LIST" },
+        ],
+      }),
+{% endif %}
+{% if model.allows_delete %}
+      {{ model.rtk_delete_key }}: builder.mutation<void, { id: {{ model.primary_key_type }} }>({
+        queryFn: async ({ id }) => {
+          try {
+            return { data: await client.{{ model.accessor }}.delete(id) };
+          } catch (error) {
+            return { error: toRtkRestError(error) };
+          }
+        },
+        invalidatesTags: (_result, _error, arg) => [
+          { type: "{{ model.name }}" as const, id: arg.id },
+          { type: "{{ model.name }}" as const, id: "LIST" },
+        ],
+      }),
+{% endif %}
+{% endfor %}
+{% for procedure in query_procedures %}
+      {{ procedure.method_name }}: builder.query<{{ procedure.return_type }}, {{ procedure.args_name }}>({
+        queryFn: async (args) => {
+          try {
+            return { data: await client.procedures.{{ procedure.method_name }}(args) };
+          } catch (error) {
+            return { error: toRtkRestError(error) };
+          }
+        },
+        // Schema-derived (issue #906): the models this procedure's own
+        // args/return type reference, per `crate::rtk::touch::touched_model_names`.
+        providesTags: [
+{% for touched_model in procedure.touched_models %}
+          { type: "{{ touched_model }}" as const, id: "LIST" },
+{% endfor %}
+        ],
+      }),
+{% endfor %}
+{% for procedure in mutation_procedures %}
+      {{ procedure.method_name }}: builder.mutation<{{ procedure.return_type }}, {{ procedure.args_name }}>({
+        queryFn: async (args) => {
+          try {
+            return { data: await client.procedures.{{ procedure.method_name }}(args) };
+          } catch (error) {
+            return { error: toRtkRestError(error) };
+          }
+        },
+        // Schema-derived (issue #906): the models this procedure's own
+        // args/return type reference, per `crate::rtk::touch::touched_model_names`.
+        //
+        // The GENERAL tag (`{ type }`, no `id`) is deliberate and load-bearing.
+        // RTK Query matches a specific tag `{ type, id: "LIST" }` only against
+        // providers of that exact pair — so invalidating LIST alone would
+        // refresh `list<Model>` while leaving every `get<Model>(id)` entry
+        // stale, which surfaces as a list and a detail view disagreeing. The
+        // general tag cascades to all specific tags of the type. A procedure
+        // has no row id available, so this is the only correct choice here.
+        //
+        // Derivation is from the procedure's SIGNATURE, not from what it
+        // actually writes: a procedure taking scalar ids and mutating a model
+        // it never names derives an empty list. See #906.
+        invalidatesTags: [
+{% for touched_model in procedure.touched_models %}
+          { type: "{{ touched_model }}" as const },
+{% endfor %}
+        ],
+      }),
+{% endfor %}
+    }),
+  });
+}
+
+export type CratestackRtkApi = ReturnType<typeof createCratestackRtkApi>;

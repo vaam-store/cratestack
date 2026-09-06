@@ -23,12 +23,8 @@ pub(crate) fn handle_diff(
     name: String,
     allow_destructive: bool,
 ) -> Result<()> {
-    let next_schema = cratestack_parser::parse_schema_file(&schema).map_err(|error| {
-        anyhow::anyhow!(
-            "{}",
-            crate::cli_support::render_schema_error(&schema, &error)
-        )
-    })?;
+    let next_schema = cratestack_parser::parse_schema_file(&schema)
+        .map_err(|error| anyhow::anyhow!("{}", crate::cli_support::render_schema_error(&error)))?;
 
     let slug = sanitize_slug(&name);
     let timestamp = Utc::now().format("%Y%m%d%H%M%S").to_string();

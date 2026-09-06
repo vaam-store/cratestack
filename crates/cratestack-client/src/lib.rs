@@ -65,8 +65,12 @@
 //!   RpcStream`, not `::cratestack::futures::Stream` — no `futures`
 //!   re-export needed to name it.
 //! - `ModelPrimaryKey`, `ModelDescriptor`, `CreateModelInput`/
-//!   `UpdateModelInput`/`UpsertModelInput`, `SqlValue`/`SqlColumnValue`,
-//!   `RelationInclude` — all server/embedded-only. Client-generated model
+//!   `UpdateModelInput`/`UpsertModelInput`, `SqlColumnValue`,
+//!   `RelationInclude` — all server/embedded-only. (`SqlValue` was in this
+//!   list until cratestack#928: it is `IntoSqlValue::into_sql_value`'s
+//!   return type, so exporting the trait without it left the trait
+//!   unimplementable by generated code here. `cratestack-pg`, `-api` and
+//!   `-sqlite` all already exported it; this facade was the outlier.) Client-generated model
 //!   structs and CRUD inputs never implement these traits (they're bare
 //!   `#[derive(Serialize, Deserialize)]` structs the wire codec reads and
 //!   writes directly), and `as_include()` — the one call site that would
@@ -114,12 +118,29 @@ pub use cratestack_macros::include_client_schema;
 // verbatim via `pub use cratestack_policy::RelationQuantifier;`, so pulling
 // it from here needs no direct `cratestack-policy` dependency of this
 // crate's own). Everything else `cratestack-sql` exports
-// (`ModelDescriptor`, `CreateModelInput`/`UpdateModelInput`, `SqlValue`,
+// (`ModelDescriptor`, `CreateModelInput`/`UpdateModelInput`,
 // `RelationInclude`, the untyped-REST-route `OrderCatalog`/
 // `OrderRelationEdge`, …) is server/embedded-only — see this module's doc.
+// `SqlValue` is the exception and IS exported below: generated client code
+// implements `IntoSqlValue` for enum types, which it cannot do without
+// naming that trait's return type (cratestack#928).
 pub use cratestack_sql::{
-    FieldRef, FilterExpr, IntoSqlValue, OrderClause, Orderable, RelationHop, RelationQuantifier,
-    SortDirection, Unorderable, order_value_sql, wrap_filter,
+    FieldRef,
+    FilterExpr,
+    IntoSqlValue,
+    OrderClause,
+    Orderable,
+    RelationHop,
+    RelationQuantifier,
+    SortDirection,
+    // `IntoSqlValue::into_sql_value`'s return type. Exporting the trait
+    // without it left the trait unimplementable by generated code in this
+    // facade — which broke `include_client_schema!` for any schema with an
+    // enum-typed model field (cratestack#928).
+    SqlValue,
+    Unorderable,
+    order_value_sql,
+    wrap_filter,
 };
 
 pub use chrono;

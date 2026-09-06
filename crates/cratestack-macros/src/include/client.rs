@@ -85,7 +85,7 @@ pub(super) fn compose_client_schema(
         let find_many_input_structs = schema
             .models
             .iter()
-            .map(|model| generate_find_many_types(model, &model_name_set));
+            .map(|model| generate_find_many_types(model, &model_name_set, &enum_name_set));
         // Client field modules: same surface as server field modules minus
         // emissions that hard-reference `*_MODEL` descriptors (which the
         // client composer doesn't emit). See `FieldModuleKind::Client`.

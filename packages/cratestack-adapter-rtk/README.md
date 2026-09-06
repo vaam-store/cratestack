@@ -6,9 +6,12 @@ through the same runtime and `RpcLink` chain (`@cratestack/link-batch`, `@crates
 etc.) the rest of the generated client uses, instead of RTK Query's default `fetchBaseQuery`
 reimplementing the wire protocol.
 
-There is currently no fully-generated RTK Query endpoint set (unlike the generated
-`rpc-react-query.ts.j2` hooks for `@tanstack/react-query`) — this package is the primitive for
-hand-writing one.
+This package is the primitive; `cratestack generate-typescript --rtk` (cratestack#906) generates a
+full `createApi` endpoint set on top of it — `src/rtk-api.ts`'s `createCratestackRtkApi(client)`, one
+entry per model operation and per `procedure`, with `providesTags`/`invalidatesTags` derived from the
+schema rather than hand-written. The hand-written shape below is still exactly what that generated
+code does under the hood, and is the reference for anyone customizing beyond the generator's output
+or writing a `--template-dir` override for `rtk-rpc.ts.j2`.
 
 ## Usage
 
