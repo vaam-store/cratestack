@@ -14,13 +14,13 @@ use cratestack_core::{EnumDecl, Model, Schema, TypeDecl};
 
 use crate::builders::{build_data_class, build_enum_view};
 use crate::builders_model::{build_model_accessor, build_model_api, build_selection_model};
-use crate::find_many_views::{
-    build_find_many_data_class, build_order_by_clause_data_class, build_sort_field_enum,
-    build_where_data_class,
-};
+use crate::enum_filter_view::build_enum_filter_data_class;
+use crate::find_many_order::{build_find_many_data_class, build_order_by_clause_data_class};
+use crate::find_many_views::{build_sort_field_enum, build_where_data_class};
 use crate::idents::to_camel_case;
 use crate::naming::{
-    is_computed_field, is_generated_on_create, is_primary_key, model_name_set, scalar_model_fields,
+    is_computed_field, is_generated_on_create, is_primary_key, model_name_set, occupied_type_names,
+    scalar_model_fields,
 };
 use crate::riverpod::imports::{
     model_file_path, model_file_stem, model_relation_targets, owned_type_decl_model_refs,
@@ -67,6 +67,7 @@ pub(crate) fn build_model_file(
 ) -> (String, ModelFileContext) {
     let model_names = model_name_set(&schema.models);
     let enum_names: BTreeSet<&str> = schema.enums.iter().map(|e| e.name.as_str()).collect();
+    let occupied = occupied_type_names(schema);
 
     let model_fields = model.fields.iter().collect::<Vec<_>>();
     let scalar_fields = scalar_model_fields(model, &model_names);
@@ -145,13 +146,29 @@ pub(crate) fn build_model_file(
         .map(|enum_decl| build_enum_view(enum_decl))
         .collect();
 
+    // One `{EnumName}Filter` class per enum this file owns (cratestack#928)
+    // — alongside that enum's own `EnumView` above, so a `{EnumName}Filter`
+    // is always emitted in the same file as the enum it filters on, same
+    // as every other owned-type/enum pairing this partition drives.
+    for enum_decl in partition
+        .owned_names(&locus)
+        .into_iter()
+        .filter_map(|name| enum_by_name.get(name))
+    {
+        data_classes.push(build_enum_filter_data_class(
+            enum_decl,
+            &occupied,
+            &enum_names,
+        ));
+    }
+
     // `<Model>Where`/`<Model>SortField`/`<Model>OrderByClause`/
     // `<Model>FindMany` are always single-model-owned by construction
     // (never cross-model, unlike the partition-computed types above), so
     // they're generated directly here rather than routed through
     // `TypePartition` — same reasoning as the TypeScript `swr` preset's
     // `find_many_views.rs` usage in `swr/context.rs`.
-    let where_class = build_where_data_class(model, &model_names);
+    let where_class = build_where_data_class(model, &model_names, &enum_names, &occupied);
     if let Some(where_class) = where_class.clone() {
         data_classes.push(where_class);
     }

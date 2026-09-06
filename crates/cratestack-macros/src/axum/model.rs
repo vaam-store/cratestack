@@ -18,6 +18,8 @@ mod prep;
 mod routes;
 mod serializers;
 
+use std::collections::BTreeSet;
+
 use cratestack_core::{Model, TypeArity};
 use quote::quote;
 
@@ -37,6 +39,7 @@ pub(crate) use routes::generate_model_axum_routes;
 pub(crate) fn generate_model_axum_handlers(
     model: &Model,
     models: &[Model],
+    enum_names: &BTreeSet<&str>,
 ) -> Result<proc_macro2::TokenStream, String> {
     let p = prep::build_prep(model)?;
     let model_names = model_name_set(models);
@@ -44,7 +47,7 @@ pub(crate) fn generate_model_axum_handlers(
 
     let query_filter_arms = scalar_model_fields(model, &model_names)
         .into_iter()
-        .filter_map(|field| generate_query_filter_arm(field_module_ident, field))
+        .filter_map(|field| generate_query_filter_arm(field_module_ident, field, enum_names))
         .collect::<Vec<_>>();
     let relation_filter_guards = relation_model_fields(model, &model_names)
         .into_iter()

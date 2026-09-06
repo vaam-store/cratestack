@@ -6,10 +6,9 @@ use crate::builders_model::{
     build_selection_model,
 };
 use crate::config::{DartGeneratorConfig, DartGeneratorError, DartPreset};
-use crate::find_many_views::{
-    build_find_many_data_class, build_order_by_clause_data_class, build_sort_field_enum,
-    build_where_data_class,
-};
+use crate::enum_filter_view::build_enum_filter_data_class;
+use crate::find_many_order::{build_find_many_data_class, build_order_by_clause_data_class};
+use crate::find_many_views::{build_sort_field_enum, build_where_data_class};
 use crate::idents::{
     dart_identifier, escape_dart_string, pluralize, to_camel_case, to_pascal_case,
 };
@@ -39,6 +38,21 @@ pub(crate) fn build_template_context(
     let mut enum_types: Vec<_> = schema.enums.iter().map(build_enum_view).collect();
 
     let mut data_classes = Vec::new();
+    // One `{EnumName}Filter` class per schema enum (cratestack#928),
+    // generated unconditionally alongside the enum itself — same
+    // "generated regardless of use" convention `<Model>Where`/
+    // `SortField`/`OrderByClause` below already follow.
+    for enum_decl in &schema.enums {
+        data_classes.push(build_enum_filter_data_class(
+            enum_decl,
+            &occupied_type_names,
+            // Same set the reference site below uses. Passing one variable
+            // rather than two identical ones is deliberate: the declaration and
+            // reference sites MUST resolve the same name, and a second
+            // locally-built set makes that agreement coincidental.
+            &enum_names,
+        ));
+    }
     for ty in &schema.types {
         let fields = ty.fields.iter().collect::<Vec<_>>();
         data_classes.push(build_data_class(
@@ -115,7 +129,8 @@ pub(crate) fn build_template_context(
         // `<Model>FindMany` — generated for every model unconditionally,
         // same as `Create`/`Update<Model>Input` above, regardless of
         // whether a procedure actually declares `FindMany<Model>`.
-        let where_class = build_where_data_class(model, &model_names);
+        let where_class =
+            build_where_data_class(model, &model_names, &enum_names, &occupied_type_names);
         if let Some(where_class) = where_class.clone() {
             data_classes.push(where_class);
         }

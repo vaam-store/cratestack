@@ -4,6 +4,7 @@
 mod attrs;
 pub(crate) mod bytes_serde;
 pub(crate) mod decimal_backend;
+mod enum_query_parser;
 mod procedure_attrs;
 mod sql;
 mod types;

@@ -103,8 +103,11 @@ pub(crate) struct SharedTypesFileContext {
     /// those filter classes do NOT carry `@CratestackBuilder()` — only
     /// `data_classes` (the partition-assigned/orphan `type` blocks) does,
     /// via `build_data_class`'s unconditional `emit_builder: true`. A
-    /// schema whose partition assigns nothing to `Owner::Shared` (the
-    /// common case — `ci_rpc.cstack`) has zero `data_classes` here, and
+    /// schema whose partition assigns nothing to `Owner::Shared` (e.g.
+    /// `tests/fixtures/no_shared_types.cstack`; NOT `ci_rpc.cstack` any
+    /// more — cratestack#928 gave every enum a generated filter class,
+    /// which made that fixture's shared file non-empty) has zero
+    /// `data_classes` here, and
     /// `package:cratestack_builder`'s `PartBuilder` writes no output file
     /// when its target has zero `@CratestackBuilder()`-annotated classes
     /// — an unconditional directive would be a real `flutter analyze

@@ -3,7 +3,9 @@
 //! whichever operators the caller set into real `FilterExpr`s via the
 //! model's own field accessors (`super::<model_snake>::<field>()`), the
 //! same `FieldRef` calls the untyped REST `?where=` route already makes.
-//! Split out from `inputs.rs` per the repo's 200-LoC file convention.
+//! Split out from `inputs.rs` per the repo's 200-LoC file convention —
+//! `to_filters()`'s per-field body itself lives in the sibling
+//! `find_many_where_push.rs`, split out for the same reason.
 
 use std::collections::BTreeSet;
 
@@ -15,41 +17,25 @@ use crate::shared::{
     generated_doc_attr, ident, rust_type_tokens, scalar_model_fields, to_snake_case,
 };
 
+use super::find_many_where_push::build_field_push;
+
 /// Types `query_scalar_parser_tokens` (the untyped REST `?where=` route's
 /// own value parser) already proves can round-trip through a filter —
-/// `Json`/`Bytes`/enum/custom-`type` fields are excluded here the same
-/// way that function excludes them, rather than speculatively generating
+/// `Json`/`Bytes`/custom-`type` fields are excluded here the same way
+/// that function excludes them, rather than speculatively generating
 /// `.eq()`/`.ne()` calls whose `IntoSqlValue` support isn't confirmed.
-fn is_filterable_scalar(field: &Field) -> bool {
+/// Enum fields (cratestack#928) are included: the enum's own generated
+/// `impl IntoSqlValue` (`crate::types::enums::generate_enum_type`) covers
+/// `.eq()`/`.ne()`/`.in_()` the same as every other scalar here.
+///
+/// `pub(super)` — `find_many_where_push.rs`'s `supports_ordering_ops`
+/// gates on this too, since an enum field must stay filterable-but-not-
+/// orderable rather than falling out of the filter set entirely.
+pub(super) fn is_filterable_scalar(field: &Field, enum_names: &BTreeSet<&str>) -> bool {
     matches!(
         field.ty.name.as_str(),
         "String" | "Cuid" | "Int" | "Float" | "Boolean" | "Uuid" | "DateTime" | "Decimal"
-    )
-}
-
-/// `lt`/`lte`/`gt`/`gte` — every filterable scalar except `Boolean`.
-/// Unlike the untyped REST route's own `supports_comparison`, not gated
-/// to `Required` arity: `FieldRef<M, T>`'s comparison methods never
-/// actually inspect `T` (see `cratestack-sql::filter::field_ref`), so
-/// there's no technical reason to withhold them from optional fields —
-/// this is a deliberate, real improvement over the untyped route, not an
-/// inconsistency with it.
-fn supports_ordering_ops(field: &Field) -> bool {
-    is_filterable_scalar(field) && field.ty.name != "Boolean"
-}
-
-/// `contains`/`startsWith` — `String`/`Cuid` only (the only two types
-/// `FieldRef::contains`/`starts_with` are actually implemented for; a
-/// `Uuid` field's `FieldRef<M, uuid::Uuid>` has no such impl), and only at
-/// `Required`/`Optional` arity: those two impls are scoped to
-/// `FieldRef<M, String>` / `FieldRef<M, Option<String>>` specifically, so
-/// a scalar `String[]`/`Cuid[]` field's `FieldRef<M, Vec<String>>` has
-/// neither method — a pre-existing gap independent of this ticket's
-/// builder work, surfaced by it once a schema-authored scalar list field
-/// existed to compile against (`Where`-clause filtering on a list column
-/// has no obvious `contains`/`startsWith` semantics to begin with).
-fn supports_string_ops(field: &Field) -> bool {
-    matches!(field.ty.name.as_str(), "String" | "Cuid") && field.ty.arity != TypeArity::List
+    ) || enum_names.contains(field.ty.name.as_str())
 }
 
 fn scalar_type_tokens(field: &Field) -> proc_macro2::TokenStream {
@@ -67,6 +53,7 @@ fn scalar_type_tokens(field: &Field) -> proc_macro2::TokenStream {
 pub(crate) fn generate_where_struct(
     model: &Model,
     model_names: &BTreeSet<&str>,
+    enum_names: &BTreeSet<&str>,
 ) -> proc_macro2::TokenStream {
     let where_ident = ident(&format!("{}Where", model.name));
     let module_ident = ident(&to_snake_case(&model.name));
@@ -77,7 +64,7 @@ pub(crate) fn generate_where_struct(
     ));
     let fields = scalar_model_fields(model, model_names)
         .into_iter()
-        .filter(|field| is_filterable_scalar(field))
+        .filter(|field| is_filterable_scalar(field, enum_names))
         .collect::<Vec<_>>();
 
     let field_defs = fields.iter().map(|field| {
@@ -90,7 +77,7 @@ pub(crate) fn generate_where_struct(
 
     let filter_pushes = fields
         .iter()
-        .map(|field| build_field_push(field, &module_ident));
+        .map(|field| build_field_push(field, &module_ident, enum_names));
 
     // Every field is `Option<FieldFilterInput<_>>` — every operator on a
     // `Where` is optional, so the builder is non-generic (no required
@@ -129,66 +116,4 @@ pub(crate) fn generate_where_struct(
 fn scalar_where_field_type(field: &Field) -> proc_macro2::TokenStream {
     let scalar_type = scalar_type_tokens(field);
     quote! { Option<::cratestack::FieldFilterInput<#scalar_type>> }
-}
-
-fn build_field_push(field: &Field, module_ident: &syn::Ident) -> proc_macro2::TokenStream {
-    let field_ident = ident(&field.name);
-    let field_fn = ident(&field.name);
-    let mut ops = vec![quote! {
-        if let Some(value) = &filter.eq {
-            filters.push(::cratestack::FilterExpr::from(super::#module_ident::#field_fn().eq(value.clone())));
-        }
-        if let Some(value) = &filter.ne {
-            filters.push(::cratestack::FilterExpr::from(super::#module_ident::#field_fn().ne(value.clone())));
-        }
-        if let Some(values) = &filter.in_ {
-            filters.push(::cratestack::FilterExpr::from(super::#module_ident::#field_fn().in_(values.clone())));
-        }
-    }];
-
-    if supports_ordering_ops(field) {
-        ops.push(quote! {
-            if let Some(value) = &filter.lt {
-                filters.push(::cratestack::FilterExpr::from(super::#module_ident::#field_fn().lt(value.clone())));
-            }
-            if let Some(value) = &filter.lte {
-                filters.push(::cratestack::FilterExpr::from(super::#module_ident::#field_fn().lte(value.clone())));
-            }
-            if let Some(value) = &filter.gt {
-                filters.push(::cratestack::FilterExpr::from(super::#module_ident::#field_fn().gt(value.clone())));
-            }
-            if let Some(value) = &filter.gte {
-                filters.push(::cratestack::FilterExpr::from(super::#module_ident::#field_fn().gte(value.clone())));
-            }
-        });
-    }
-
-    if supports_string_ops(field) {
-        ops.push(quote! {
-            if let Some(value) = &filter.contains {
-                filters.push(::cratestack::FilterExpr::from(super::#module_ident::#field_fn().contains(value.clone())));
-            }
-            if let Some(value) = &filter.starts_with {
-                filters.push(::cratestack::FilterExpr::from(super::#module_ident::#field_fn().starts_with(value.clone())));
-            }
-        });
-    }
-
-    if field.ty.arity == TypeArity::Optional {
-        ops.push(quote! {
-            if let Some(is_null) = filter.is_null {
-                filters.push(if is_null {
-                    ::cratestack::FilterExpr::from(super::#module_ident::#field_fn().is_null())
-                } else {
-                    ::cratestack::FilterExpr::from(super::#module_ident::#field_fn().is_not_null())
-                });
-            }
-        });
-    }
-
-    quote! {
-        if let Some(filter) = &self.#field_ident {
-            #(#ops)*
-        }
-    }
 }

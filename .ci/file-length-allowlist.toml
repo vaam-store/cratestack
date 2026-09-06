@@ -588,13 +588,6 @@ added = "2026-08-29"
 reason = "test module; split by concern when the module it covers is next touched"
 
 [[file]]
-path = "crates/cratestack-client-dart/src/find_many_views.rs"
-lines = 222
-issue = "#TBD"
-added = "2026-08-29"
-reason = "pre-existing; split by concern (extract inline tests first)"
-
-[[file]]
 path = "crates/cratestack-core/src/value/codec_tests.rs"
 lines = 222
 issue = "#TBD"

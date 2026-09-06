@@ -12,6 +12,7 @@ pub(crate) fn generate_enum_type(enum_decl: &EnumDecl) -> proc_macro2::TokenStre
     let as_str_arms = as_str_arms(enum_decl);
     let parse_arms = parse_arms(enum_decl);
     let enum_name = schema_lit(&enum_decl.name);
+    let accepted_variants = accepted_variants_lit(enum_decl);
 
     quote! {
         #docs
@@ -40,7 +41,10 @@ pub(crate) fn generate_enum_type(enum_decl: &EnumDecl) -> proc_macro2::TokenStre
             fn from_str(value: &str) -> Result<Self, Self::Err> {
                 match value {
                     #(#parse_arms)*
-                    _ => Err(format!("unknown enum variant `{value}` for `{}`", #enum_name)),
+                    _ => Err(format!(
+                        "unknown enum variant `{value}` for `{}`; expected one of: {}",
+                        #enum_name, #accepted_variants,
+                    )),
                 }
             }
         }
@@ -60,6 +64,7 @@ pub(crate) fn generate_client_enum_type(enum_decl: &EnumDecl) -> proc_macro2::To
     let as_str_arms = as_str_arms(enum_decl);
     let parse_arms = parse_arms(enum_decl);
     let enum_name = schema_lit(&enum_decl.name);
+    let accepted_variants = accepted_variants_lit(enum_decl);
 
     quote! {
         #docs
@@ -88,8 +93,23 @@ pub(crate) fn generate_client_enum_type(enum_decl: &EnumDecl) -> proc_macro2::To
             fn from_str(value: &str) -> Result<Self, Self::Err> {
                 match value {
                     #(#parse_arms)*
-                    _ => Err(format!("unknown enum variant `{value}` for `{}`", #enum_name)),
+                    _ => Err(format!(
+                        "unknown enum variant `{value}` for `{}`; expected one of: {}",
+                        #enum_name, #accepted_variants,
+                    )),
                 }
+            }
+        }
+
+        // Mirrors `generate_enum_type`'s impl deliberately. `<Model>Where`'s
+        // `to_filters()` is emitted by BOTH composers, and since #928 made
+        // enum fields filterable it calls `FieldRef::eq/ne/in_`, which bound
+        // `V: IntoSqlValue`. Without this, `include_client_schema!` fails to
+        // compile with E0277 for any schema having an enum-typed model field
+        // — a shape no client fixture had, which is why CI stayed green.
+        impl ::cratestack::IntoSqlValue for #enum_ident {
+            fn into_sql_value(self) -> ::cratestack::SqlValue {
+                ::cratestack::SqlValue::String(self.to_string())
             }
         }
     }
@@ -132,6 +152,21 @@ fn as_str_arms(enum_decl: &EnumDecl) -> Vec<proc_macro2::TokenStream> {
             quote! { Self::#variant_ident => #name, }
         })
         .collect()
+}
+
+/// Comma-joined variant names, baked in as one string literal — issue
+/// #928's rejection message (and, by extension, the query-filter
+/// `BadRequest` that wraps this `FromStr` error, in
+/// `shared::types::query_scalar_parser_tokens`) needs to name the
+/// accepted values, not just report that the given one didn't match.
+fn accepted_variants_lit(enum_decl: &EnumDecl) -> syn::LitStr {
+    let known = enum_decl
+        .variants
+        .iter()
+        .map(|variant| variant.name.as_str())
+        .collect::<Vec<_>>()
+        .join(", ");
+    schema_lit(&known)
 }
 
 fn parse_arms(enum_decl: &EnumDecl) -> Vec<proc_macro2::TokenStream> {

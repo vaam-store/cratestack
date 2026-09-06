@@ -254,7 +254,7 @@ pub(crate) fn build_template_context(
             ));
         }
 
-        let where_interface = build_where_interface(model, &model_names);
+        let where_interface = build_where_interface(model, &model_names, &enum_names);
         if let Some(where_interface) = where_interface.clone() {
             interfaces.push(where_interface);
         }

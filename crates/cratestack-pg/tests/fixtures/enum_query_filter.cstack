@@ -1,0 +1,25 @@
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+// Regression fixture for cratestack#928: a model field whose type is an
+// enum gets no query-filter match arm generated, so filtering a list
+// route on it 400s with "unsupported query filter". Mirrors the issue's
+// own repro (`Order.state`) — see
+// `crates/cratestack-pg/tests/enum_query_filter.rs`, which drives the
+// real generated REST list route over HTTP and asserts `eq`/`ne`/`in`
+// all filter correctly, and that an unknown variant is rejected with a
+// message naming the field and the accepted values.
+enum OrderState {
+  reserved
+  funded
+  cancelled
+}
+
+model Order {
+  id Int @id
+  state OrderState
+
+  @@allow("read", auth() != null)
+}
