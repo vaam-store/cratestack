@@ -54,8 +54,10 @@ pub(crate) struct ProcedureView {
     /// Issue #906: model names this procedure's own `args`/`return_type`
     /// reference — `crate::rtk::touch::touched_model_names`, sorted for a
     /// stable render order. `--rtk`'s ONLY consumer today: a query
-    /// procedure's `providesTags`, a mutation procedure's
-    /// `invalidatesTags` — one `{ type, id: 'LIST' }` per entry. Empty for
+    /// procedure's `providesTags` (specific, `{ type, id: 'LIST' }`) and a
+    /// mutation procedure's `invalidatesTags` (GENERAL, `{ type }` with no
+    /// `id`, so it reaches every `get<Model>(id)` entry — see
+    /// `crate::rtk`'s module doc). Empty for
     /// every procedure when `--rtk` never ran the schema (harmless: no
     /// template reads this field without `--rtk`), and empty for any
     /// procedure whose own signature touches no model.

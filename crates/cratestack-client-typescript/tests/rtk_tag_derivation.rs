@@ -82,25 +82,27 @@ fn assert_tags_match_touched_models(schema_source: &str, is_rpc: bool) {
     );
     // Exactly Order and Widget — the two models this procedure's own
     // args/return type actually reference.
+    let mutation_tags = tags_array(mutation_block, "invalidatesTags");
     assert!(
-        mutation_block.contains(r#"{ type: "Order" as const }"#),
+        mutation_tags.contains(r#"{ type: "Order" as const }"#),
         "{}: archiveWidgetOrder touches Order (its own arg type) — must invalidate it:\n{mutation_block}",
         transport_label(is_rpc)
     );
     assert!(
-        mutation_block.contains(r#"{ type: "Widget" as const }"#),
+        mutation_tags.contains(r#"{ type: "Widget" as const }"#),
         "{}: archiveWidgetOrder touches Widget (its own return type) — must invalidate it:\n{mutation_block}",
         transport_label(is_rpc)
     );
     // The decisive negative: Ledger is never mentioned in this
-    // procedure's signature, so it must not appear in ITS tags block —
-    // checked against the SLICED block, not the whole file (which
-    // legitimately mentions "Ledger" elsewhere, e.g. in `tagTypes` and in
-    // `summarizeLedger`'s own tags).
+    // procedure's signature, so it must not appear in ITS tags — checked
+    // against the sliced tags ARRAY, not the endpoint block. The block
+    // includes a prose comment, and a comment that happened to say
+    // "Ledger" would fail this spuriously; the same slicing that stopped
+    // `id: "LIST"` matching prose applies here.
     assert!(
-        !mutation_block.contains("Ledger"),
+        !mutation_tags.contains("Ledger"),
         "{}: archiveWidgetOrder never references Ledger — it must not invalidate it just \
-         because Ledger exists elsewhere in the schema:\n{mutation_block}",
+         because Ledger exists elsewhere in the schema:\n{mutation_tags}",
         transport_label(is_rpc)
     );
 

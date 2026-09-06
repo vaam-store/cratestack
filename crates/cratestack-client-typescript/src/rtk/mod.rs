@@ -59,8 +59,17 @@
 //! only schema-declared signal linking it to the models it operates on
 //! (there is no separate `touches` attribute), so that is exactly what
 //! gets walked, and the resulting model set becomes that procedure's
-//! `providesTags` (query) / `invalidatesTags` (mutation) — one `{type,
-//! id:'LIST'}` per touched model.
+//! `providesTags` (query) / `invalidatesTags` (mutation).
+//!
+//! The two tag SHAPES differ, deliberately. A query procedure provides the
+//! specific `{type, id:'LIST'}`. A mutation procedure invalidates the
+//! GENERAL `{type}` — no `id`. RTK Query matches a specific tag only
+//! against providers of that exact pair (`selectInvalidatedBy` indexes
+//! `provided[tag.id]` when an id is given, and flattens every bucket when
+//! it is not), so invalidating LIST alone would refresh `list<Model>`
+//! while leaving every `get<Model>(id)` entry stale. A procedure has no
+//! row id available, so the general tag is the only correct choice.
+//! `rtk_tag_derivation.rs` guards this.
 
 pub(crate) mod collisions;
 pub(crate) mod deps;
