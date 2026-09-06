@@ -162,7 +162,7 @@ targets:
 
 | Target | How |
 | --- | --- |
-| Native mobile (iOS, Android) | FFI / `flutter_rust_bridge` |
+| Native mobile (iOS, Android) | FFI / `flutter_rust_bridge` (Flutter), local Expo native module (React Native) |
 | Native desktop (Linux, macOS, Windows) | direct |
 | Browser | `wasm32-unknown-unknown` + OPFS persistence via `sqlite-wasm-rs` |
 
@@ -248,6 +248,7 @@ index in [`examples/README.md`](examples/README.md). A sample:
 | Browser: wasm + OPFS + Vite | `examples/embedded-browser-vite` |
 | React 19 + Vite + Tailwind + DaisyUI | `examples/react-vite-daisyui` |
 | Next.js 16: wasm in the browser, napi on the server, typed HTTP client upstream | `examples/react-nextjs-daisyui` |
+| React Native: Expo + embedded SQLite | `examples/embedded-expo` |
 | Flutter + Riverpod, generated Dart client | `examples/flutter-riverpod` |
 | Tauri 2 desktop shell | `examples/tauri-web` |
 
