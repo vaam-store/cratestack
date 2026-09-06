@@ -45,6 +45,8 @@ mod tests_model_internal;
 mod tests_model_unique;
 #[cfg(test)]
 mod tests_multi_error;
+#[cfg(test)]
+mod tests_multifile_reserved_keywords;
 mod tests_patch_touch_flag_collisions;
 #[cfg(test)]
 mod tests_procedure_handler_collisions;
