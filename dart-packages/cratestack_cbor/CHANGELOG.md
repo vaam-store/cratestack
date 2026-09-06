@@ -2,31 +2,15 @@
 
 ## 0.12.0 (2026-09-06)
 
-<!-- TODO: edit this section from the seed below -->
-<!-- seeded from v0.11.1..HEAD at 9858fbc800ed4664abc5ed27301b09bfca6236bd -->
-
-This is an auto-generated seed. Please rewrite into narrative prose describing
-the changes in this release, grouped by concern. Refer to existing entries in
-this file for the house prose style. Do not commit with this placeholder text.
-
-### Changes
-
-#### Features
-
-- pluggable HTTP transport for reqwest-middleware (#926) (#927)
-- generate an RTK Query endpoint set from the schema (#906) (#933)
-- give SchemaError file identity so diagnostics can span files (#916) (#931)
-
-#### Fixes
-
-- enum-typed fields are filterable on list routes (#928) (#934)
-- a `type`-valued `@computed` field is legal on a model (#909) (#925)
-- rename the RPC enum-filter fixture off the `orders` table (#936)
-- npm-publish.sh classifies on `npm error` lines only; cbor-node job verifies the registry (#890) (#891)
-
-#### Documentation
-
-- add ROADMAP.md, and record the SeaORM/Diesel decision (#889)
+- No functional changes to this package. Version kept in lockstep with the
+  CrateStack workspace, which every published CrateStack artifact shares.
+- The one workspace change that reaches this package's native side is inert
+  here: `cratestack-client-flutter` — the frb-bridged crate this package's
+  codec ships from — gained a `middleware` Cargo feature forwarding
+  `cratestack-client-rust`'s pluggable HTTP transport (#926, #927). It is
+  additive and off by default, adds nothing to the dependency graph unless
+  enabled, and does not touch the CBOR bridge: the only diff in that crate is
+  the feature declaration in its `Cargo.toml`, with no source change.
 
 ## 0.11.1 (2026-09-03)
 
