@@ -20,10 +20,14 @@ knew, parse with `parse_schema_named` instead of `parse_schema` so the error car
 
 **Diagnostic output is byte-identical for `parse_schema_named` and `parse_schema_file`** —
 verified by rendering 13 schemas × 5 paths through both entry points on both trees and
-comparing SHA-256. It is *not* identical for the anonymous `parse_schema`: that path now
-renders `<schema>` where a caller previously supplied their own path at render time. This
-is the one behavioural regression in the change, and it is why `cratestack-studio` moved to
-`parse_schema_named`.
+comparing SHA-256. It is *not* identical for the two path-less entry points. `parse_schema` and
+`parse_schema_unvalidated` now render `<schema>` where a caller previously supplied their
+own path at render time. That is the behavioural cost of making the error self-describing,
+and it is why `cratestack-studio` moved to `parse_schema_named`. If you were passing a path
+you knew, parse with `parse_schema_named` and the error carries it.
+
+`ANONYMOUS_SCHEMA` is exported so a consumer can recognise that placeholder
+(`error.file() == cratestack_parser::ANONYMOUS_SCHEMA`) instead of hardcoding the string.
 
 The CLI's `--format json` diagnostics gain a `file` key. Purely additive — every existing
 key keeps its value and type.

@@ -18,7 +18,7 @@ cratestack-parser = "0.7"
 ### Parse from a string
 
 ```rust
-use cratestack_parser::parse_schema;
+use cratestack_parser::parse_schema_named;
 
 let source = r#"
 auth Principal {
@@ -61,7 +61,7 @@ let schema = parse_schema_named("my-app/schema.cstack", source)?;
 ariadne-rendered report:
 
 ```rust
-use cratestack_parser::{SchemaError, parse_schema};
+use cratestack_parser::{SchemaError, parse_schema_named};
 
 match parse_schema_named("schema.cstack", source) {
     Ok(schema) => { /* ... */ }

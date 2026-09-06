@@ -91,8 +91,8 @@ mod tests_views;
 
 pub use diagnostics::SchemaError;
 pub use entry::{
-    parse_schema, parse_schema_diagnostics, parse_schema_file, parse_schema_named,
-    parse_schema_unvalidated,
+    ANONYMOUS_SCHEMA, parse_schema, parse_schema_diagnostics, parse_schema_file,
+    parse_schema_named, parse_schema_unvalidated,
 };
 
 /// Canonical scalar type names built into the `.cstack` language (e.g.
