@@ -5,22 +5,28 @@ datasource db {
   url = env("DATABASE_URL")
 }
 
-// RPC-transport counterpart to `enum_query_filter.cstack` (cratestack#928):
+// RPC-transport counterpart to `enum_query_filter.cstack` (cratestack#928).
+//
+// The model is `RpcOrder`, not `Order`, deliberately: each file in
+// `tests/` runs as its own OS process against one shared Postgres, so two
+// different fixtures deriving the same `pluralize(snake_case(name))` table
+// race DROP/CREATE/INSERT across binaries. `tests/fixture_table_names.rs`
+// guards that, and this fixture tripped it.
 // RPC's `model.<Model>.list` synthesizes a URL query string from
 // `RpcListInput.filters` and re-enters the exact same
 // `parse_model_list_query`/`<model>_filter_expr` path REST uses
 // (`cratestack-axum/src/rpc/synthesize.rs`) — this fixture proves that
 // reuse actually closes the gap on this transport too, not just REST.
 // See `crates/cratestack-pg/tests/enum_query_filter_rpc.rs`.
-enum OrderState {
+enum RpcOrderState {
   reserved
   funded
   cancelled
 }
 
-model Order {
+model RpcOrder {
   id Int @id
-  state OrderState
+  state RpcOrderState
 
   @@allow("read", auth() != null)
 }

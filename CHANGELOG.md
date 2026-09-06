@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### `main` was red: two #928 fixtures collided on the `orders` table
+
+`cargo test -p cratestack-pg --test fixture_table_names` failed on `main` from
+the moment #934 merged. `enum_query_filter.cstack` and
+`enum_query_filter_rpc.cstack` both declared `model Order`, so both derived the
+physical table `orders` — and each file under `tests/` runs as its own OS
+process against one shared Postgres, so the two binaries race DROP/CREATE/INSERT
+on it. `tests/fixture_table_names.rs` exists to catch exactly that class, having
+been written after `customers`, `users` and `posts` each reproduced it for real.
+
+The RPC fixture's model is now `RpcOrder` (table `rpc_orders`), with the reason
+recorded in the fixture so the next person adding a paired REST/RPC fixture does
+not repeat it.
+
+Worth recording how it reached `main`: #928's verification ran the crates it
+touched — `client-dart`, `client`, `macros`, `client-typescript` — and never
+`-p cratestack-pg`, where the guard lives. The guard is pure static analysis and
+needs no database, so it would have caught this in under a second had it been
+run.
+
 ### `SchemaError` carries its own file, and `render()` lost its arguments — breaking (#916)
 
 `SchemaError` held `message`, `span` and `line` but no file, and `render(path, source)`
