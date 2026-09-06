@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.12.0 (2026-09-06)
+
 ### `main` was red: two #928 fixtures collided on the `orders` table
 
 `cargo test -p cratestack-pg --test fixture_table_names` failed on `main` from

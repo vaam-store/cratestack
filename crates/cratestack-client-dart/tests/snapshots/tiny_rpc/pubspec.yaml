@@ -30,7 +30,7 @@ dependencies:
   # — see `dart-packages/cratestack_annotations/pubspec.yaml`'s own header
   # comment for why merging them would leak `analyzer`/`build`/`source_gen`
   # into this package's runtime dependency graph.
-  cratestack_annotations: '>=0.8.10 <0.12.0'
+  cratestack_annotations: '>=0.8.10 <0.13.0'
 
 dev_dependencies:
   flutter_lints: ^6.0.0
@@ -40,4 +40,4 @@ dev_dependencies:
   # into the `{Class}Builder` classes this package used to generate inline
   # — see `dart-packages/cratestack_builder`'s own README for what it does.
   build_runner: ^2.15.0
-  cratestack_builder: '>=0.9.3 <0.12.0'
+  cratestack_builder: '>=0.9.3 <0.13.0'

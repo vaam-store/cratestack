@@ -1,6 +1,6 @@
 {
   "name": "@cratestack/validator-yup",
-  "version": "0.11.1",
+  "version": "0.12.0",
   "description": "An RpcLink for CrateStack's generated TypeScript RPC client that validates request input against per-op yup schemas.",
   "license": "MIT",
   "repository": {
@@ -39,7 +39,7 @@
     "lint": "biome check ."
   },
   "dependencies": {
-    "@cratestack/ts-types": "0.11.1"
+    "@cratestack/ts-types": "0.12.0"
   },
   "peerDependencies": {
     "yup": "^1.4.0"

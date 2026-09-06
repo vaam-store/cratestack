@@ -66,7 +66,7 @@
 # macOS uses, see that file's doc comment for the full explanation.
 Pod::Spec.new do |s|
   s.name             = 'cratestack_cbor'
-  s.version          = '0.11.1'
+  s.version          = '0.12.0'
   s.summary          = 'Native CBOR codec for CrateStack Dart/Flutter clients (iOS).'
   s.description      = <<-DESC
 Vendors a prebuilt xcframework (device arm64 + universal simulator

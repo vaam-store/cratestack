@@ -18,7 +18,7 @@ importers:
   packages/cratestack-adapter-rtk:
     dependencies:
       '@cratestack/ts-types':
-        specifier: 0.11.1
+        specifier: 0.12.0
         version: link:../cratestack-ts-types
     devDependencies:
       '@reduxjs/toolkit':
@@ -34,7 +34,7 @@ importers:
   packages/cratestack-adapter-tanstack-query:
     dependencies:
       '@cratestack/ts-types':
-        specifier: 0.11.1
+        specifier: 0.12.0
         version: link:../cratestack-ts-types
     devDependencies:
       '@tanstack/query-core':
@@ -50,31 +50,31 @@ importers:
   packages/cratestack-api:
     dependencies:
       '@cratestack/adapter-rtk':
-        specifier: 0.11.1
+        specifier: 0.12.0
         version: link:../cratestack-adapter-rtk
       '@cratestack/adapter-tanstack-query':
-        specifier: 0.11.1
+        specifier: 0.12.0
         version: link:../cratestack-adapter-tanstack-query
       '@cratestack/link-batch':
-        specifier: 0.11.1
+        specifier: 0.12.0
         version: link:../cratestack-link-batch
       '@cratestack/link-logger':
-        specifier: 0.11.1
+        specifier: 0.12.0
         version: link:../cratestack-link-logger
       '@cratestack/runtime-axios':
-        specifier: 0.11.1
+        specifier: 0.12.0
         version: link:../cratestack-runtime-axios
       '@cratestack/runtime-fetch':
-        specifier: 0.11.1
+        specifier: 0.12.0
         version: link:../cratestack-runtime-fetch
       '@cratestack/ts-types':
-        specifier: 0.11.1
+        specifier: 0.12.0
         version: link:../cratestack-ts-types
       '@cratestack/validator-yup':
-        specifier: 0.11.1
+        specifier: 0.12.0
         version: link:../cratestack-validator-yup
       '@cratestack/validator-zod':
-        specifier: 0.11.1
+        specifier: 0.12.0
         version: link:../cratestack-validator-zod
     devDependencies:
       '@reduxjs/toolkit':
@@ -102,13 +102,13 @@ importers:
   packages/cratestack-cbor:
     dependencies:
       '@cratestack/cbor-node':
-        specifier: 0.11.1
+        specifier: 0.12.0
         version: link:../cratestack-cbor-node
       '@cratestack/cbor-web':
-        specifier: 0.11.1
+        specifier: 0.12.0
         version: link:../cratestack-cbor-web
       '@cratestack/ts-types':
-        specifier: 0.11.1
+        specifier: 0.12.0
         version: link:../cratestack-ts-types
     devDependencies:
       typescript:
@@ -121,7 +121,7 @@ importers:
   packages/cratestack-cbor-node:
     devDependencies:
       '@cratestack/ts-types':
-        specifier: 0.11.1
+        specifier: 0.12.0
         version: link:../cratestack-ts-types
       '@napi-rs/cli':
         specifier: ^3.8.6
@@ -136,7 +136,7 @@ importers:
   packages/cratestack-cbor-web:
     dependencies:
       '@cratestack/ts-types':
-        specifier: 0.11.1
+        specifier: 0.12.0
         version: link:../cratestack-ts-types
     devDependencies:
       typescript:
@@ -151,7 +151,7 @@ importers:
   packages/cratestack-link-batch:
     dependencies:
       '@cratestack/ts-types':
-        specifier: 0.11.1
+        specifier: 0.12.0
         version: link:../cratestack-ts-types
     devDependencies:
       typescript:
@@ -164,7 +164,7 @@ importers:
   packages/cratestack-link-logger:
     dependencies:
       '@cratestack/ts-types':
-        specifier: 0.11.1
+        specifier: 0.12.0
         version: link:../cratestack-ts-types
     devDependencies:
       typescript:
@@ -222,7 +222,7 @@ importers:
   packages/cratestack-validator-yup:
     dependencies:
       '@cratestack/ts-types':
-        specifier: 0.11.1
+        specifier: 0.12.0
         version: link:../cratestack-ts-types
     devDependencies:
       typescript:
@@ -238,7 +238,7 @@ importers:
   packages/cratestack-validator-zod:
     dependencies:
       '@cratestack/ts-types':
-        specifier: 0.11.1
+        specifier: 0.12.0
         version: link:../cratestack-ts-types
     devDependencies:
       typescript:
