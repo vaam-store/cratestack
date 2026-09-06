@@ -3,14 +3,13 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, anyhow};
 use sha2::{Digest, Sha256};
 
-pub(crate) fn render_schema_error(
-    schema: &PathBuf,
-    error: &cratestack_parser::SchemaError,
-) -> String {
-    error.render(
-        &schema.display().to_string(),
-        &std::fs::read_to_string(schema).unwrap_or_default(),
-    )
+/// Renders a `SchemaError` produced by parsing `schema` earlier in the same
+/// call. Takes no `schema` argument (cratestack#916 removed it): the error
+/// already carries its own file identity and source text from the moment
+/// `parse_schema_file` produced it, so there's no longer a second
+/// (potentially stale, or simply wrong) disk read to keep in sync with it.
+pub(crate) fn render_schema_error(error: &cratestack_parser::SchemaError) -> String {
+    error.render()
 }
 
 pub(crate) fn json_check_success(schema: &Path) -> serde_json::Value {
@@ -32,6 +31,12 @@ pub(crate) fn json_check_failure(
         "diagnostics": [
             {
                 "message": error.message(),
+                // cratestack#916: which file the diagnostic belongs to —
+                // always `schema` itself while `check` only ever parses one
+                // file, but exposed per-diagnostic (not just the top-level
+                // "schema" key) so this shape doesn't have to change again
+                // the day `check` can report across several files.
+                "file": error.file(),
                 "line": error.line(),
                 "start": span.start,
                 "end": span.end,
@@ -42,7 +47,7 @@ pub(crate) fn json_check_failure(
 
 pub(crate) fn parse_schema_or_render(schema: &PathBuf) -> Result<cratestack_core::Schema> {
     cratestack_parser::parse_schema_file(schema)
-        .map_err(|error| anyhow!(render_schema_error(schema, &error)))
+        .map_err(|error| anyhow!(render_schema_error(&error)))
 }
 
 /// Hex-encoded SHA-256 of the schema file's raw bytes — the *same*

@@ -37,12 +37,20 @@ mod tests {
 
     #[test]
     fn json_failure_payload_exposes_structured_diagnostic_fields() {
-        let error = cratestack_parser::parse_schema("model User {\n  email String\n}\n")
-            .expect_err("schema should fail validation");
+        // `parse_schema_named` (not the anonymous `parse_schema`) so the
+        // resulting error's file identity (cratestack#916) matches the
+        // `schema.cstack` path `json_check_failure` is given below — the
+        // same relationship `handle_check` relies on for a real schema file.
+        let error = cratestack_parser::parse_schema_named(
+            "schema.cstack",
+            "model User {\n  email String\n}\n",
+        )
+        .expect_err("schema should fail validation");
         let payload = json_check_failure(Path::new("schema.cstack"), &error);
         let diagnostic = &payload["diagnostics"][0];
 
         assert_eq!(payload["ok"], false);
+        assert_eq!(diagnostic["file"], "schema.cstack");
         assert_eq!(diagnostic["line"], 1);
         assert!(diagnostic["start"].as_u64().is_some());
         assert!(diagnostic["end"].as_u64().is_some());

@@ -2,6 +2,41 @@
 
 ## Unreleased
 
+### `SchemaError` carries its own file, and `render()` lost its arguments — breaking (#916)
+
+`SchemaError` held `message`, `span` and `line` but no file, and `render(path, source)`
+took the pair as arguments. Nothing tied that pair to the error: a caller could hand any
+source to any error and get a plausible-looking report, which is exactly the failure mode
+multi-file schemas would have made routine.
+
+The error now carries `file` and `source_text`, applied at the entry points in `entry.rs`,
+and `render()` takes no arguments.
+
+**Breaking, and wider than one crate.** `SchemaError` is re-exported from `cratestack-pg`,
+`cratestack-api` and `cratestack-sqlite`, so a consumer on the documented
+`cratestack = { package = "cratestack-pg" }` path who calls `error.render(path, source)`
+gets a compile error. The fix is to drop both arguments; if you were passing a path you
+knew, parse with `parse_schema_named` instead of `parse_schema` so the error carries it.
+
+**Diagnostic output is byte-identical for `parse_schema_named` and `parse_schema_file`** —
+verified by rendering 13 schemas × 5 paths through both entry points on both trees and
+comparing SHA-256. It is *not* identical for the two path-less entry points. `parse_schema` and
+`parse_schema_unvalidated` now render `<schema>` where a caller previously supplied their
+own path at render time. That is the behavioural cost of making the error self-describing,
+and it is why `cratestack-studio` moved to `parse_schema_named`. If you were passing a path
+you knew, parse with `parse_schema_named` and the error carries it.
+
+`ANONYMOUS_SCHEMA` is exported so a consumer can recognise that placeholder
+(`error.file() == cratestack_parser::ANONYMOUS_SCHEMA`) instead of hardcoding the string.
+
+The CLI's `--format json` diagnostics gain a `file` key. Purely additive — every existing
+key keeps its value and type.
+
+`Debug` for `SchemaError` is now hand-written rather than derived, and prints
+`source_text_len` instead of the source. A derived `Debug` would dump the entire `.cstack`
+file into every `.unwrap()` panic and every `{:?}` log line, with no compile error to warn
+anyone it had started happening.
+
 ### `generate-typescript --rtk`: a generated RTK Query endpoint set, with invalidation tags derived from the schema
 
 `@cratestack/adapter-rtk` has shipped `createRpcBaseQuery` (an RTK Query `BaseQueryFn` over the

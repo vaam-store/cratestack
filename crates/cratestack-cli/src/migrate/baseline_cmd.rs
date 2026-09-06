@@ -56,12 +56,8 @@ pub(crate) fn handle_baseline(
         );
     }
 
-    let next_schema = cratestack_parser::parse_schema_file(&schema).map_err(|error| {
-        anyhow::anyhow!(
-            "{}",
-            crate::cli_support::render_schema_error(&schema, &error)
-        )
-    })?;
+    let next_schema = cratestack_parser::parse_schema_file(&schema)
+        .map_err(|error| anyhow::anyhow!("{}", crate::cli_support::render_schema_error(&error)))?;
 
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
