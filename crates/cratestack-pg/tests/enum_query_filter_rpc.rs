@@ -1,5 +1,5 @@
 //! RPC-transport counterpart to `enum_query_filter.rs` (cratestack#928):
-//! `model.Order.list`'s `RpcListInput.filters` must reach the same
+//! `model.RpcOrder.list`'s `RpcListInput.filters` must reach the same
 //! enum-aware `<model>_filter_expr` REST now gets — RPC dispatch
 //! synthesizes a URL query string from `filters` and re-enters the exact
 //! same parsing path (`cratestack-axum/src/rpc/synthesize.rs`), so this
@@ -44,21 +44,21 @@ struct NoProcedures;
 impl cratestack_schema::procedures::ProcedureRegistry for NoProcedures {}
 
 async fn reset_and_seed(pool: &cratestack::sqlx::PgPool) {
-    cratestack::sqlx::query("DROP TABLE IF EXISTS orders")
+    cratestack::sqlx::query("DROP TABLE IF EXISTS rpc_orders")
         .execute(pool)
         .await
-        .expect("drop orders");
-    cratestack::sqlx::query("CREATE TABLE orders (id BIGINT PRIMARY KEY, state TEXT NOT NULL)")
+        .expect("drop rpc_orders");
+    cratestack::sqlx::query("CREATE TABLE rpc_orders (id BIGINT PRIMARY KEY, state TEXT NOT NULL)")
         .execute(pool)
         .await
-        .expect("create orders");
+        .expect("create rpc_orders");
     cratestack::sqlx::query(
-        "INSERT INTO orders (id, state) VALUES \
+        "INSERT INTO rpc_orders (id, state) VALUES \
          (1, 'reserved'), (2, 'funded'), (3, 'funded'), (4, 'cancelled')",
     )
     .execute(pool)
     .await
-    .expect("seed orders");
+    .expect("seed rpc_orders");
 }
 
 fn router(pool: cratestack::sqlx::PgPool) -> cratestack::axum::Router {
@@ -92,7 +92,7 @@ async fn list_with_filter(
     let response = router
         .clone()
         .oneshot(
-            Request::post("/rpc/model.Order.list")
+            Request::post("/rpc/model.RpcOrder.list")
                 .header("accept", CborCodec::CONTENT_TYPE)
                 .header("content-type", CborCodec::CONTENT_TYPE)
                 .body(Body::from(frame))
