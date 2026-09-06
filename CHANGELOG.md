@@ -125,6 +125,48 @@ otherwise) and round-trips it as a nested object, `null` included.
 
 Closes #909.
 
+### A roadmap, and a recorded decision not to add SeaORM or Diesel
+
+There was no roadmap — no `ROADMAP.md`, no milestones, four open issues. The
+direction existed but was scattered across four places a newcomer would never
+assemble: the one open epic and its slices, ADR status fields (0016 sits at
+*Proposed*), ADR 0001's reserved-but-unwritten 0006-0010 range, and design docs
+specifying things not yet built. `rpc-transport.md` §4 specified `OpExecutor` on
+2026-05-15 and `layering.md` §2 called L3 "the one layer with no members" for
+three months before ADR 0015 settled building it — that gap was invisible unless
+you already knew where to look.
+
+`ROADMAP.md` now assembles all four, plus a shipped-capability table (the
+changelog is 7,000 lines and answers "what exists?" badly), the OpExecutor slice
+status, and the open maintainer decisions marked rather than resolved.
+
+It also records a decision, so it stops being re-proposed. **SeaORM and Diesel
+were both evaluated as additional SQL engines and both rejected.** SeaORM is
+built on top of sqlx, so it adds a layer above the driver already in use — no new
+database, no new driver — and its entity codegen competes directly with what
+`cratestack-macros` generates from `.cstack`. Diesel is a genuinely different
+stack, but its value is a compile-time query DSL, and CrateStack renders SQL as
+strings through `cratestack-sql` + `Dialect`; adopting it means bypassing the
+DSL and keeping Diesel as a connection pool.
+
+The demand behind "more engines" is MySQL/MariaDB and server-side SQLite, which
+sqlx already drives — and which the macro's own error message has promised. The
+coupling was measured rather than estimated: 760 of ~886 `sqlx::` references sit
+inside `cratestack-sqlx`, `cratestack-sql` is genuinely agnostic (its only two
+`sqlx` mentions are doc comments), but `cratestack-macros` emits `FromRow<'_,
+PgRow>`/`sqlx::Row`/`PgPool` across 10 files, and the SQL carries 83 `RETURNING`,
+43 `ON CONFLICT` and 17 `MATERIALIZED` — none of which MySQL supports as written.
+The `Dialect` trait is one method wide today, which is evidence the job hasn't
+started rather than that it is nearly done.
+
+Three capability gaps are named honestly after reviewing what comparable
+schema-first frameworks ship: polymorphism/model inheritance (the largest —
+`mixin` is field reuse, not a type hierarchy), OpenAPI emission, and client
+capability slicing. Most of the rest of that comparison was already shipped here.
+
+The road to 1.0 is left blank on purpose. There is no written definition of what
+1.0 means, and inventing one is not a documentation change.
+
 ## 0.11.1 (2026-09-03)
 
 ### Procedures and auth providers are plain `async fn` — in every example, and in the trait docs
@@ -155,7 +197,6 @@ That document is the wider frame: a Spring-Boot-shaped, compile-time-only applic
 CrateStack (one-line boot, typed config, health, declared cross-cutting concerns, test client,
 scaffolder), each piece tested against ADR 0012 and refused where it would need a proxy or a registry.
 This is its phase 1; phases 2–3 wait on the document's §8 decisions.
-
 ### A beginner on-ramp, and a README that stops describing itself by comparison
 
 The repository had three issue forms, all of them internal planning forms. Epic, User Story and
