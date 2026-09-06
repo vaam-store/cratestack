@@ -174,13 +174,21 @@ export function createCratestackRtkApi(
         },
         // Schema-derived (issue #906): the models this procedure's own
         // args/return type reference, per `crate::rtk::touch::touched_model_names`.
-        // This is the ticket's actual point — a hand-maintained
-        // `invalidatesTags` array is a classic source of stale-UI bugs
-        // precisely because nothing checks it; this one cannot drift from
-        // the schema because it IS the schema.
+        //
+        // The GENERAL tag (`{ type }`, no `id`) is deliberate and load-bearing.
+        // RTK Query matches a specific tag `{ type, id: "LIST" }` only against
+        // providers of that exact pair — so invalidating LIST alone would
+        // refresh `list<Model>` while leaving every `get<Model>(id)` entry
+        // stale, which surfaces as a list and a detail view disagreeing. The
+        // general tag cascades to all specific tags of the type. A procedure
+        // has no row id available, so this is the only correct choice here.
+        //
+        // Derivation is from the procedure's SIGNATURE, not from what it
+        // actually writes: a procedure taking scalar ids and mutating a model
+        // it never names derives an empty list. See #906.
         invalidatesTags: [
 {% for touched_model in procedure.touched_models %}
-          { type: "{{ touched_model }}" as const, id: "LIST" },
+          { type: "{{ touched_model }}" as const },
 {% endfor %}
         ],
       }),

@@ -83,12 +83,12 @@ fn assert_tags_match_touched_models(schema_source: &str, is_rpc: bool) {
     // Exactly Order and Widget — the two models this procedure's own
     // args/return type actually reference.
     assert!(
-        mutation_block.contains(r#"{ type: "Order" as const, id: "LIST" }"#),
+        mutation_block.contains(r#"{ type: "Order" as const }"#),
         "{}: archiveWidgetOrder touches Order (its own arg type) — must invalidate it:\n{mutation_block}",
         transport_label(is_rpc)
     );
     assert!(
-        mutation_block.contains(r#"{ type: "Widget" as const, id: "LIST" }"#),
+        mutation_block.contains(r#"{ type: "Widget" as const }"#),
         "{}: archiveWidgetOrder touches Widget (its own return type) — must invalidate it:\n{mutation_block}",
         transport_label(is_rpc)
     );
@@ -167,4 +167,55 @@ fn file<'a>(package: &'a GeneratedTypeScriptPackage, name: &str) -> &'a str {
         .find(|file| file.file_name == name)
         .map(|file| file.contents.as_str())
         .unwrap_or_else(|| panic!("generated package should contain {name}"))
+}
+
+/// A mutation procedure must NOT emit the specific `id: "LIST"` tag.
+///
+/// RTK Query matches a specific tag only against providers of that exact
+/// pair, so `{ type, id: "LIST" }` refreshes `listOrder` while leaving every
+/// `getOrder(id)` entry stale — a list and a detail view disagreeing, which
+/// is among the hardest stale-UI bugs to trace to its cause. The generated
+/// code shipped exactly this shape, and this test asserted it, until #906's
+/// review caught it. This guard is what stops it coming back.
+#[test]
+fn mutation_procedures_use_the_general_tag_not_the_specific_list_tag() {
+    for is_rpc in [false, true] {
+        let source = if is_rpc {
+            SCHEMA.replace("datasource db {", "transport rpc\n\ndatasource db {")
+        } else {
+            SCHEMA.to_owned()
+        };
+        let package = generate(&source);
+        let rtk_api = file(&package, "src/rtk-api.ts");
+        let mutation_block = endpoint_block(rtk_api, "archiveWidgetOrder");
+        // Slice the tags ARRAY, not the whole endpoint. The surrounding
+        // comment deliberately quotes `id: "LIST"` to explain why it is
+        // wrong, and a naive block-wide search matches that prose instead
+        // of the code — which is exactly how this assertion first failed.
+        let tags_array = tags_array(mutation_block, "invalidatesTags");
+
+        assert!(
+            !tags_array.contains(r#"id: "LIST""#),
+            "{}: a mutation procedure must invalidate the general tag so \
+             `get<Model>(id)` entries are reached; the specific LIST tag \
+             matches only LIST providers:\n{tags_array}",
+            transport_label(is_rpc)
+        );
+    }
+}
+
+/// Slice the literal array that follows `<name>: [`, up to its closing `],`.
+///
+/// Needed because the generated tags block is preceded by a comment that
+/// quotes the very shape under test.
+fn tags_array<'a>(endpoint: &'a str, name: &str) -> &'a str {
+    let marker = format!("{name}: [");
+    let start = endpoint
+        .find(&marker)
+        .unwrap_or_else(|| panic!("expected `{marker}` in endpoint:\n{endpoint}"));
+    let rest = &endpoint[start..];
+    let end = rest
+        .find("],")
+        .unwrap_or_else(|| panic!("expected a closing `],` after `{marker}`"));
+    &rest[..end + 2]
 }
