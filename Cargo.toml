@@ -106,7 +106,7 @@ exclude = [
 ]
 
 [workspace.package]
-version = "0.11.1"
+version = "0.12.0"
 edition = "2024"
 rust-version = "1.98.0"
 license = "MIT"
@@ -168,14 +168,14 @@ minicbor-serde = { version = "0.7.1", features = ["std"] }
 # and desynchronise from what sqlx compiles against.
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
-cratestack-api = { path = "crates/cratestack-api", version = "0.11.1" }
+cratestack-api = { path = "crates/cratestack-api", version = "0.12.0" }
 # `default-features = false` (cratestack#495): real (non-dev) dependency of
 # `cratestack-pg`/`cratestack-api` — see each consumer's own decimal
 # feature for the forward. Without this, `cratestack-axum`'s own
 # `default = ["decimal-rust-decimal"]` would activate unconditionally,
 # defeating `decimal-bigdecimal` for either facade.
-cratestack-axum = { path = "crates/cratestack-axum", version = "0.11.1", default-features = false }
-cratestack-client = { path = "crates/cratestack-client", version = "0.11.1" }
+cratestack-axum = { path = "crates/cratestack-axum", version = "0.12.0", default-features = false }
+cratestack-client = { path = "crates/cratestack-client", version = "0.12.0" }
 # `default-features = false` (cratestack#495, closed for cratestack-cli's own
 # edge by #496): real (non-optional) dependency of `cratestack-cli` — see
 # that crate's own decimal feature for the forward. Without this,
@@ -183,14 +183,14 @@ cratestack-client = { path = "crates/cratestack-client", version = "0.11.1" }
 # activate unconditionally regardless of which backend `cratestack-cli`
 # itself selected, the same leak this issue closed for every other crate in
 # the closure.
-cratestack-client-dart = { path = "crates/cratestack-client-dart", version = "0.11.1", default-features = false }
-cratestack-client-flutter = { path = "crates/cratestack-client-flutter", version = "0.11.1" }
+cratestack-client-dart = { path = "crates/cratestack-client-dart", version = "0.12.0", default-features = false }
+cratestack-client-flutter = { path = "crates/cratestack-client-flutter", version = "0.12.0" }
 # `default-features = false` (cratestack#496): mirrors `cratestack-client-dart`
 # above — real dependency of `cratestack-cli`.
-cratestack-client-typescript = { path = "crates/cratestack-client-typescript", version = "0.11.1", default-features = false }
-cratestack-client-store-redis = { path = "crates/cratestack-client-store-redis", version = "0.11.1" }
-cratestack-client-rust = { path = "crates/cratestack-client-rust", version = "0.11.1", default-features = false }
-cratestack-client-store-sqlite = { path = "crates/cratestack-client-store-sqlite", version = "0.11.1" }
+cratestack-client-typescript = { path = "crates/cratestack-client-typescript", version = "0.12.0", default-features = false }
+cratestack-client-store-redis = { path = "crates/cratestack-client-store-redis", version = "0.12.0" }
+cratestack-client-rust = { path = "crates/cratestack-client-rust", version = "0.12.0", default-features = false }
+cratestack-client-store-sqlite = { path = "crates/cratestack-client-store-sqlite", version = "0.12.0" }
 # `default-features = false` (cratestack#495): both codecs are direct,
 # unconditional (non-optional) `cratestack-core` consumers of their own —
 # see each crate's own Cargo.toml. Without this, a consumer that
@@ -199,15 +199,15 @@ cratestack-client-store-sqlite = { path = "crates/cratestack-client-store-sqlite
 # `decimal-bigdecimal`: the codec's own default `decimal-rust-decimal`
 # would activate unconditionally as a side effect of depending on it at
 # all, unrelated to whatever backend the depending crate itself selected.
-cratestack-codec-cbor = { path = "crates/cratestack-codec-cbor", version = "0.11.1", default-features = false }
-cratestack-codec-json = { path = "crates/cratestack-codec-json", version = "0.11.1", default-features = false }
-cratestack-core = { path = "crates/cratestack-core", version = "0.11.1", default-features = false }
+cratestack-codec-cbor = { path = "crates/cratestack-codec-cbor", version = "0.12.0", default-features = false }
+cratestack-codec-json = { path = "crates/cratestack-codec-json", version = "0.12.0", default-features = false }
+cratestack-core = { path = "crates/cratestack-core", version = "0.12.0", default-features = false }
 # `default-features = false` for the same cratestack#495 reason as every
 # other entry in this block: `cratestack-exec` re-exports a decimal-backend
 # choice it forwards to `cratestack-core`, and letting its own default
 # activate unconditionally would put `rust_decimal` back in a
 # `--features decimal-bigdecimal` graph.
-cratestack-exec = { path = "crates/cratestack-exec", version = "0.11.1", default-features = false }
+cratestack-exec = { path = "crates/cratestack-exec", version = "0.12.0", default-features = false }
 # `default-features = false` (cratestack#495): although this crate's own
 # proc-macro implementation never constructs a `cratestack_core::Decimal`
 # value (it only emits `::cratestack::Decimal` tokens into the schema it
@@ -217,46 +217,46 @@ cratestack-exec = { path = "crates/cratestack-exec", version = "0.11.1", default
 # the "no rust_decimal anywhere in the graph" bar `--features
 # decimal-bigdecimal` is supposed to satisfy — regardless of which backend
 # the depending facade actually chose.
-cratestack-macros = { path = "crates/cratestack-macros", version = "0.11.1", default-features = false }
+cratestack-macros = { path = "crates/cratestack-macros", version = "0.12.0", default-features = false }
 # `default-features = false` (cratestack#495): real dependency of
 # `cratestack-cli` and `cratestack-studio`, dev-dependency of
 # `cratestack-pg` — see each consumer's own decimal feature for the
 # forward.
-cratestack-migrate = { path = "crates/cratestack-migrate", version = "0.11.1", default-features = false }
+cratestack-migrate = { path = "crates/cratestack-migrate", version = "0.12.0", default-features = false }
 # `default-features = false` (cratestack#496): mirrors `cratestack-client-dart`
 # above — real dependency of `cratestack-cli`.
-cratestack-mock-wiremock = { path = "crates/cratestack-mock-wiremock", version = "0.11.1", default-features = false }
+cratestack-mock-wiremock = { path = "crates/cratestack-mock-wiremock", version = "0.12.0", default-features = false }
 # `default-features = false` (cratestack#495): `cratestack-parser` is a
 # real (non-optional) dependency of `cratestack-macros` and every
 # server-side facade — see each consumer's own `decimal-rust-decimal`/
 # `decimal-bigdecimal` feature for the forward.
-cratestack-parser = { path = "crates/cratestack-parser", version = "0.11.1", default-features = false }
-cratestack-pg = { path = "crates/cratestack-pg", version = "0.11.1" }
+cratestack-parser = { path = "crates/cratestack-parser", version = "0.12.0", default-features = false }
+cratestack-pg = { path = "crates/cratestack-pg", version = "0.12.0" }
 # `default-features = false` (cratestack#495): same reasoning as
 # `cratestack-macros` above — `cratestack-policy`'s own source never
 # constructs a `cratestack_core::Decimal`, but it IS a real dependency of
 # `cratestack-sql`/`cratestack-sqlx`/every server-side facade, so its own
 # default backend choice must not activate independently of theirs.
-cratestack-policy = { path = "crates/cratestack-policy", version = "0.11.1", default-features = false }
-cratestack-redis = { path = "crates/cratestack-redis", version = "0.11.1" }
-cratestack-rusqlite = { path = "crates/cratestack-rusqlite", version = "0.11.1", default-features = false }
-cratestack-service = { path = "crates/cratestack-service", version = "0.11.1" }
+cratestack-policy = { path = "crates/cratestack-policy", version = "0.12.0", default-features = false }
+cratestack-redis = { path = "crates/cratestack-redis", version = "0.12.0" }
+cratestack-rusqlite = { path = "crates/cratestack-rusqlite", version = "0.12.0", default-features = false }
+cratestack-service = { path = "crates/cratestack-service", version = "0.12.0" }
 # `default-features = false` added alongside `cratestack-core`/`-sqlx`/
 # `-rusqlite` above for cratestack#495: `cratestack-sql`'s own
 # `default = ["decimal-rust-decimal"]` would otherwise force that backend
 # into every plain `cratestack-sql.workspace = true` consumer regardless
 # of which `Decimal` backend they'd actually selected via
 # `cratestack-core`, defeating `decimal-bigdecimal` for any of them.
-cratestack-sql = { path = "crates/cratestack-sql", version = "0.11.1", default-features = false }
-cratestack-sqlite = { path = "crates/cratestack-sqlite", version = "0.11.1" }
-cratestack-sqlx = { path = "crates/cratestack-sqlx", version = "0.11.1", default-features = false }
+cratestack-sql = { path = "crates/cratestack-sql", version = "0.12.0", default-features = false }
+cratestack-sqlite = { path = "crates/cratestack-sqlite", version = "0.12.0" }
+cratestack-sqlx = { path = "crates/cratestack-sqlx", version = "0.12.0", default-features = false }
 # `default-features = false` (cratestack#496): mirrors `cratestack-client-dart`
 # above — real dependency of `cratestack-cli`. Note this only affects
 # `cratestack-studio`'s decimal-backend toggle, not its separately-gated
 # `embed-ui` feature — `cratestack-cli`'s own edge re-adds `embed-ui`
 # explicitly (see that crate's Cargo.toml) since turning off ALL default
 # features here also turns off `embed-ui`, which was previously implicit.
-cratestack-studio = { path = "crates/cratestack-studio", version = "0.11.1", default-features = false }
+cratestack-studio = { path = "crates/cratestack-studio", version = "0.12.0", default-features = false }
 minijinja = "2"
 # Was pinned to the `0` line via the `rustls-tls` feature (reqwest 0.12-only
 # name) until #435: that name doesn't exist on reqwest 0.13, so Cargo could

@@ -39,7 +39,7 @@ dependencies:
   # issue #668 phase 2: see `pubspec.yaml.j2`'s identical dependency
   # comment — same annotation, same reasoning, every per-model file and
   # `procedures.dart` carries `@CratestackBuilder()` here too.
-  cratestack_annotations: '>=0.8.10 <0.12.0'
+  cratestack_annotations: '>=0.8.10 <0.13.0'
 
 dev_dependencies:
   flutter_lints: ^6.0.0
@@ -121,4 +121,4 @@ dev_dependencies:
   # `analyzer` version either. A version range (not a pin) is fine here,
   # unlike the trio: `cratestack_builder` isn't the thing whose own release
   # cadence forced this wall, it just has to tolerate it.
-  cratestack_builder: '>=0.9.3 <0.12.0'
+  cratestack_builder: '>=0.9.3 <0.13.0'

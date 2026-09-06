@@ -1,5 +1,33 @@
 ## Unreleased
 
+## 0.12.0 (2026-09-06)
+
+<!-- TODO: edit this section from the seed below -->
+<!-- seeded from v0.11.1..HEAD at 9858fbc800ed4664abc5ed27301b09bfca6236bd -->
+
+This is an auto-generated seed. Please rewrite into narrative prose describing
+the changes in this release, grouped by concern. Refer to existing entries in
+this file for the house prose style. Do not commit with this placeholder text.
+
+### Changes
+
+#### Features
+
+- pluggable HTTP transport for reqwest-middleware (#926) (#927)
+- generate an RTK Query endpoint set from the schema (#906) (#933)
+- give SchemaError file identity so diagnostics can span files (#916) (#931)
+
+#### Fixes
+
+- enum-typed fields are filterable on list routes (#928) (#934)
+- a `type`-valued `@computed` field is legal on a model (#909) (#925)
+- rename the RPC enum-filter fixture off the `orders` table (#936)
+- npm-publish.sh classifies on `npm error` lines only; cbor-node job verifies the registry (#890) (#891)
+
+#### Documentation
+
+- add ROADMAP.md, and record the SeaORM/Diesel decision (#889)
+
 ## 0.11.1 (2026-09-03)
 
 - **`example/tool/verify_web_console.dart`'s headless-Chrome readiness check no longer flakes on a
