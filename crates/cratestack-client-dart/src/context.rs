@@ -43,7 +43,7 @@ pub(crate) fn build_template_context(
     // "generated regardless of use" convention `<Model>Where`/
     // `SortField`/`OrderByClause` below already follow.
     for enum_decl in &schema.enums {
-        data_classes.push(build_enum_filter_data_class(enum_decl));
+        data_classes.push(build_enum_filter_data_class(enum_decl, &occupied_type_names));
     }
     for ty in &schema.types {
         let fields = ty.fields.iter().collect::<Vec<_>>();
@@ -121,7 +121,8 @@ pub(crate) fn build_template_context(
         // `<Model>FindMany` — generated for every model unconditionally,
         // same as `Create`/`Update<Model>Input` above, regardless of
         // whether a procedure actually declares `FindMany<Model>`.
-        let where_class = build_where_data_class(model, &model_names, &enum_names);
+        let where_class =
+            build_where_data_class(model, &model_names, &enum_names, &occupied_type_names);
         if let Some(where_class) = where_class.clone() {
             data_classes.push(where_class);
         }

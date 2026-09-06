@@ -191,29 +191,44 @@ fn model_and_procedure_files_carry_the_part_directive() {
         package_file(&package, "lib/src/models/shared_types.dart")
             .contains("part 'shared_types.mapper.dart';")
     );
-    // `ci_rpc.cstack` assigns nothing to `Owner::Shared` (see the
-    // fixture's own header comment / `TypePartition`), so
-    // `shared_types.dart` has zero `data_classes` and thus zero
-    // `@CratestackBuilder()`-annotated classes in it — an unconditional
-    // builder part directive/import here dangles into a real
-    // `flutter analyze --fatal-warnings` `uri_has_not_been_generated`
-    // failure since `package:cratestack_builder`'s `PartBuilder` writes
-    // no output file for a target with no annotated classes (see
-    // `SharedTypesFileContext::builder_part_file_name`'s doc). This is
-    // the paired negative to
-    // `shared_types_file_gets_the_mapper_part_directive_when_it_has_data_classes`'s
-    // positive case.
+    // `ci_rpc.cstack`'s `PostStatus` enum is reached by two loci — model
+    // `Post` (the `status` field) AND `Procedures` (`searchPosts`'s
+    // `PostStatusFilter` argument type, and `currentStatus`'s return
+    // type) — so `TypePartition` assigns it `Owner::Shared` (see this
+    // module's own doc). Before cratestack#928, an `Owner::Shared` enum
+    // contributed only an `EnumView` (no `@CratestackBuilder()` needed),
+    // so `data_classes` stayed empty here and `shared_types.dart` had no
+    // builder part directive at all — asserted as the negative case
+    // below at the time. cratestack#928 added a generated
+    // `{EnumName}Filter` `DataClassView` alongside every enum's
+    // `EnumView` (so a `<Model>Where`/`FindMany<Model>` filter on an
+    // enum field has a real filter type to reference), which for THIS
+    // fixture is the first thing that ever puts a `data_classes` entry
+    // in `ci_rpc.cstack`'s `shared_types.dart` — flipping both
+    // assertions from absent to present.
+    //
+    // `PostStatusEnumFilter`, not the unqualified `PostStatusFilter`
+    // cratestack#928's naming scheme would produce by default: this
+    // fixture already hand-declares `type PostStatusFilter { statuses
+    // PostStatus[] }` as `searchPosts`'s argument type, so the
+    // generated name resolves through the same collision fallback
+    // `procedure_wrapper_name` uses for `<Procedure>Args`
+    // (`crate::enum_filter_view::enum_filter_class_name`) rather than
+    // silently duplicating the schema-authored class name.
     let shared_types = package_file(&package, "lib/src/models/shared_types.dart");
     assert!(
-        !shared_types.contains("part 'shared_types.builder.dart';"),
-        "ci_rpc has no shared data classes, so shared_types.dart must not carry a dangling \
-         builder part directive:\n{shared_types}"
+        shared_types.contains("class PostStatusEnumFilter"),
+        "PostStatus is Owner::Shared, so its generated filter class lives in \
+         shared_types.dart under its collision-avoiding fallback name:\n{shared_types}"
     );
     assert!(
-        !shared_types
+        shared_types.contains("part 'shared_types.builder.dart';"),
+        "ci_rpc's shared PostStatusEnumFilter class needs the builder part directive:\n{shared_types}"
+    );
+    assert!(
+        shared_types
             .contains("import 'package:cratestack_annotations/cratestack_annotations.dart';"),
-        "ci_rpc has no shared data classes, so shared_types.dart must not import \
-         cratestack_annotations unused:\n{shared_types}"
+        "ci_rpc's shared PostStatusEnumFilter class needs the cratestack_annotations import:\n{shared_types}"
     );
 }
 

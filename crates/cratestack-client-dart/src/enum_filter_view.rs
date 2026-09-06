@@ -41,8 +41,35 @@ fn enum_type_ref(enum_name: &str, arity: TypeArity) -> TypeRef {
     }
 }
 
-pub(crate) fn build_enum_filter_data_class(enum_decl: &EnumDecl) -> DataClassView {
-    let filter_name = format!("{}Filter", enum_decl.name);
+/// The generated class name for an enum's filter — `{EnumName}Filter`,
+/// unless that name is already occupied by a schema-authored `type`/
+/// `model`/`enum`/`Create`/`Update<Model>Input` (`crate::naming::
+/// occupied_type_names`). A real schema does this: a procedure argument
+/// hand-declared as `type PostStatusFilter { statuses PostStatus[] }`
+/// for an enum named `PostStatus` collides with the unconditional name
+/// verbatim (`tests/fixtures/ci_rpc.cstack`, covered by
+/// `tests/riverpod_providers.rs`'s
+/// `model_and_procedure_files_carry_the_part_directive`). Falls back to
+/// `{EnumName}EnumFilter`, then `{EnumName}ValueFilter` — same two-step
+/// fallback shape as `crate::naming::procedure_wrapper_name`, which
+/// hits the identical class of collision for `<Procedure>Args`.
+pub(crate) fn enum_filter_class_name(enum_name: &str, occupied: &BTreeSet<String>) -> String {
+    let base = format!("{enum_name}Filter");
+    if !occupied.contains(&base) {
+        return base;
+    }
+    let enum_fallback = format!("{enum_name}EnumFilter");
+    if !occupied.contains(&enum_fallback) {
+        return enum_fallback;
+    }
+    format!("{enum_name}ValueFilter")
+}
+
+pub(crate) fn build_enum_filter_data_class(
+    enum_decl: &EnumDecl,
+    occupied: &BTreeSet<String>,
+) -> DataClassView {
+    let filter_name = enum_filter_class_name(&enum_decl.name, occupied);
     // A single-element set is enough: `decode_value_expr`/`encode_value_expr`
     // only ever consult it to ask "is this exact type name an enum", and
     // every field on this class is typed to `enum_decl` itself.

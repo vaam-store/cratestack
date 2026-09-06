@@ -19,7 +19,8 @@ use crate::find_many_order::{build_find_many_data_class, build_order_by_clause_d
 use crate::find_many_views::{build_sort_field_enum, build_where_data_class};
 use crate::idents::to_camel_case;
 use crate::naming::{
-    is_computed_field, is_generated_on_create, is_primary_key, model_name_set, scalar_model_fields,
+    is_computed_field, is_generated_on_create, is_primary_key, model_name_set,
+    occupied_type_names, scalar_model_fields,
 };
 use crate::riverpod::imports::{
     model_file_path, model_file_stem, model_relation_targets, owned_type_decl_model_refs,
@@ -66,6 +67,7 @@ pub(crate) fn build_model_file(
 ) -> (String, ModelFileContext) {
     let model_names = model_name_set(&schema.models);
     let enum_names: BTreeSet<&str> = schema.enums.iter().map(|e| e.name.as_str()).collect();
+    let occupied = occupied_type_names(schema);
 
     let model_fields = model.fields.iter().collect::<Vec<_>>();
     let scalar_fields = scalar_model_fields(model, &model_names);
@@ -153,7 +155,7 @@ pub(crate) fn build_model_file(
         .into_iter()
         .filter_map(|name| enum_by_name.get(name))
     {
-        data_classes.push(build_enum_filter_data_class(enum_decl));
+        data_classes.push(build_enum_filter_data_class(enum_decl, &occupied));
     }
 
     // `<Model>Where`/`<Model>SortField`/`<Model>OrderByClause`/
@@ -162,7 +164,7 @@ pub(crate) fn build_model_file(
     // they're generated directly here rather than routed through
     // `TypePartition` — same reasoning as the TypeScript `swr` preset's
     // `find_many_views.rs` usage in `swr/context.rs`.
-    let where_class = build_where_data_class(model, &model_names, &enum_names);
+    let where_class = build_where_data_class(model, &model_names, &enum_names, &occupied);
     if let Some(where_class) = where_class.clone() {
         data_classes.push(where_class);
     }

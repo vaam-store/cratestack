@@ -16,6 +16,7 @@ use std::collections::BTreeSet;
 use cratestack_core::Field;
 use cratestack_core::Model;
 
+use crate::enum_filter_view::enum_filter_class_name;
 use crate::idents::dart_identifier;
 use crate::naming::{is_computed_field, scalar_model_fields};
 use crate::views::{DataClassView, EnumVariantView, EnumView, FieldView};
@@ -38,12 +39,18 @@ fn is_filterable_scalar(field: &Field, enum_names: &BTreeSet<&str>) -> bool {
 
 /// The shared filter class this field's operators live on — hardcoded
 /// once in `models.dart.j2`/`riverpod/shared_types.dart.j2` for every
-/// builtin scalar, or (for an enum field) the per-enum `{EnumName}Filter`
-/// class `crate::enum_filter_view::build_enum_filter_data_class`
-/// generates alongside the enum itself.
-fn filter_type_name(field: &Field, enum_names: &BTreeSet<&str>) -> String {
+/// builtin scalar, or (for an enum field) the per-enum filter class
+/// `crate::enum_filter_view` generates alongside the enum itself — same
+/// name resolution (`enum_filter_class_name`) that class's own generator
+/// uses, so a schema-authored name collision resolves to the identical
+/// fallback name in both places.
+fn filter_type_name(
+    field: &Field,
+    enum_names: &BTreeSet<&str>,
+    occupied: &BTreeSet<String>,
+) -> String {
     if enum_names.contains(field.ty.name.as_str()) {
-        return format!("{}Filter", field.ty.name);
+        return enum_filter_class_name(&field.ty.name, occupied);
     }
     match field.ty.name.as_str() {
         "String" | "Cuid" => "StringFilter",
@@ -64,6 +71,7 @@ pub(crate) fn build_where_data_class(
     model: &Model,
     model_names: &BTreeSet<&str>,
     enum_names: &BTreeSet<&str>,
+    occupied: &BTreeSet<String>,
 ) -> Option<DataClassView> {
     let fields = scalar_model_fields(model, model_names)
         .into_iter()
@@ -81,7 +89,7 @@ pub(crate) fn build_where_data_class(
         .iter()
         .map(|field| {
             let identifier = dart_identifier(&field.name);
-            let filter_type = filter_type_name(field, enum_names);
+            let filter_type = filter_type_name(field, enum_names, occupied);
             FieldView::new(
                 identifier.clone(),
                 field.name.clone(),
