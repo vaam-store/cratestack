@@ -41,18 +41,11 @@ fn enum_type_ref(enum_name: &str, arity: TypeArity) -> TypeRef {
     }
 }
 
-/// The generated class name for an enum's filter — `{EnumName}Filter`,
-/// unless that name is already occupied by a schema-authored `type`/
-/// `model`/`enum`/`Create`/`Update<Model>Input` (`crate::naming::
-/// occupied_type_names`). A real schema does this: a procedure argument
-/// hand-declared as `type PostStatusFilter { statuses PostStatus[] }`
-/// for an enum named `PostStatus` collides with the unconditional name
-/// verbatim (`tests/fixtures/ci_rpc.cstack`, covered by
-/// `tests/riverpod_providers.rs`'s
-/// `model_and_procedure_files_carry_the_part_directive`). Falls back to
-/// `{EnumName}EnumFilter`, then `{EnumName}ValueFilter` — same two-step
-/// fallback shape as `crate::naming::procedure_wrapper_name`, which
-/// hits the identical class of collision for `<Procedure>Args`.
+/// Name resolution for the generated per-enum filter class. The algorithm
+/// and the collisions it must survive are documented on
+/// `naming::enum_filter_class_name` itself — deliberately not duplicated
+/// here, because the copy that used to sit at this spot went on describing
+/// the replaced three-rung ladder after the ladder was removed.
 mod naming;
 
 pub(crate) use naming::enum_filter_class_name;

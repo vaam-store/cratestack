@@ -36,7 +36,20 @@ each schema enum) all now include enum-typed fields, matching what `<Model>SortF
 scalars, not introduced here. It is called out because #928's motivating list
 (refund status, KYC status, vendor status) is full of plausibly-nullable enums,
 and because the typed Rust `<Model>Where` path is deliberately *not* arity-gated,
-so the two surfaces now disagree for enums specifically.
+so the two surfaces disagree here.
+
+That disagreement is **not** enum-specific, and an earlier draft of this entry
+said it was. It already holds for every optional scalar — `title String?` gets a
+`FieldFilterInput<String>` in the typed `Where` and 400s on the untyped route —
+and it holds for the Dart and TypeScript clients too, whose `is_filterable_scalar`
+matches on type name with no arity check. Whether shipping with nullable status
+enums unfilterable is acceptable is a maintainer call.
+
+`SqlValue` is now exported from `cratestack-client`. It is
+`IntoSqlValue::into_sql_value`'s return type, and exporting the trait without it
+left the trait unimplementable by generated code in that facade — which is what
+broke `include_client_schema!` above. `cratestack-pg`, `-api` and `-sqlite` all
+already exported it; `cratestack-client` was the sole outlier.
 
 ### The npm publish wrapper retried the wrong things, and a green exit code was not a publish
 

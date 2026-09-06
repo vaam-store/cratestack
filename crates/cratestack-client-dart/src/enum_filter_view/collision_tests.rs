@@ -48,10 +48,16 @@ fn every_fixed_rung_taken_still_yields_a_free_name() {
     );
 }
 
-/// The resolver must stay pure: the declaration site and the reference
-/// site call it independently and must agree.
+/// The resolver is deterministic for identical inputs.
+///
+/// This is NOT a guard on the declaration/reference agreement, despite the
+/// resolver's purity being what that agreement rests on: calling a pure
+/// `fn` twice with the same arguments cannot fail for any implementation
+/// without global state. Feeding one call site a different set is the real
+/// risk, and it is only observable at package level — see
+/// `tests/enum_filter_class_agreement.rs`.
 #[test]
-fn resolution_is_deterministic_across_calls() {
+fn resolution_is_deterministic_for_identical_inputs() {
     let occupied = names(&["Kind", "KindFilter"]);
     let all = enums(&["Kind", "Other"]);
     assert_eq!(
