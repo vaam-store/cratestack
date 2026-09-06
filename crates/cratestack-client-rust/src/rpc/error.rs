@@ -39,6 +39,12 @@ impl std::error::Error for RpcRemoteError {}
 pub enum RpcClientError {
     #[error("transport error: {0}")]
     Transport(#[source] TransportError),
+    /// RPC parity for [`ClientError::Middleware`] (cratestack#926) —
+    /// a failure raised by a `reqwest_middleware` middleware rather
+    /// than by the transport under it. `middleware` feature only.
+    #[cfg(feature = "middleware")]
+    #[error("middleware error: {0}")]
+    Middleware(#[source] crate::middleware::MiddlewareError),
     #[error("codec error: {0}")]
     Codec(#[from] CratestackError),
     #[error("invalid response: {0}")]
@@ -82,6 +88,8 @@ pub(crate) fn http_status_for_rpc_code(code: &str) -> StatusCode {
 pub(crate) fn client_error_to_rpc(error: ClientError) -> RpcClientError {
     match error {
         ClientError::Transport(error) => RpcClientError::Transport(error),
+        #[cfg(feature = "middleware")]
+        ClientError::Middleware(error) => RpcClientError::Middleware(error),
         ClientError::Codec(error) => RpcClientError::Codec(error),
         ClientError::InvalidResponse(message) => RpcClientError::InvalidResponse(message),
         ClientError::BadInput(message) => RpcClientError::BadInput(message),

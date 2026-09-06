@@ -308,6 +308,14 @@ minijinja = "2"
 # needs to install a provider of their own before constructing a client —
 # see the README for the one-line snippet.
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "stream", "query"] }
+# Optional, behind `cratestack-client-rust`'s `middleware` feature — never
+# in a default build's graph. 0.5 is the first line built against reqwest
+# 0.13 (0.4 and earlier require reqwest ^0.12), so it is the only line that
+# can share this workspace's single `reqwest` version rather than forking
+# the graph in two. `reqwest-retry` >= 0.9 / `reqwest-tracing` >= 0.6 are
+# the matching 0.13-era middleware crates a consumer would pair with it;
+# neither is a dependency here (consumers pick their own).
+reqwest-middleware = { version = "0.5", default-features = false }
 # #440: `rustls-no-provider` (see the `reqwest` entry above) needs a
 # `rustls::crypto::CryptoProvider` installed before any `reqwest::Client` /
 # `CratestackClient` is built, or it panics at construction time. `ring` is

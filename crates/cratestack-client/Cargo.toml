@@ -52,6 +52,13 @@ decimal-bigdecimal = [
 # `cratestack-pg`/`cratestack-api` for rationale — on by default so
 # `include_client_schema!` keeps offering both CBOR and JSON.
 codec-json = ["cratestack-client-rust/codec-json"]
+# Forwards `cratestack-client-rust`'s pluggable HTTP transport
+# (cratestack#926) so a consumer reaching this facade can hand the
+# generated client a `reqwest_middleware::ClientWithMiddleware` —
+# retries, tracing spans, caching — without depending on
+# `cratestack-client-rust` directly. Off by default and additive: with
+# it off, nothing new enters the dependency graph.
+middleware = ["cratestack-client-rust/middleware"]
 # Extension-declaration gates (cratestack#161). These forward *only* to
 # `cratestack-macros`, never to a runtime crate, and that asymmetry with
 # `cratestack-pg` is the whole point.

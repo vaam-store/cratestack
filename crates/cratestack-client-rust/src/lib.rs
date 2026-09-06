@@ -3,6 +3,9 @@ mod client;
 mod codec;
 mod config;
 mod error;
+mod idempotency;
+#[cfg(feature = "middleware")]
+mod middleware;
 mod rpc;
 mod runtime;
 mod state;
@@ -20,7 +23,7 @@ pub use cratestack_core::rpc::{
 };
 
 pub use auth::{AuthorizationRequest, RequestAuthorizer};
-pub use client::{CratestackClient, TypedResponse};
+pub use client::{CratestackClient, TypedResponse, ensure_crypto_provider};
 pub use codec::HttpClientCodec;
 pub use config::ClientConfig;
 pub use cratestack_core::ProjectionDecoder;
@@ -33,6 +36,9 @@ pub use cratestack_core::ProjectionDecoder;
 )]
 pub use cratestack_core::ProjectionDecoder as Projection;
 pub use error::{ClientError, HeaderPair, QueryPair};
+pub use idempotency::RequestIdempotency;
+#[cfg(feature = "middleware")]
+pub use middleware::MiddlewareError;
 pub use rpc::batch::{BatchBuilder, BatchResults};
 pub use rpc::batch_call::{BatchHandle, BatchableCall};
 pub use rpc::client::RpcClient;

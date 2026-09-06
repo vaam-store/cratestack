@@ -3,9 +3,11 @@ use std::sync::Arc;
 use cratestack_codec_cbor::CborCodec;
 
 use crate::auth::RequestAuthorizer;
+use crate::client::http::HttpClient;
 use crate::codec::HttpClientCodec;
 use crate::config::ClientConfig;
 use crate::error::ClientError;
+use crate::idempotency::RequestIdempotency;
 use crate::state::{ClientStateStore, InMemoryStateStore, PersistedClientState};
 
 /// Installs a `ring`-backed `rustls::crypto::CryptoProvider` if the process
@@ -29,13 +31,21 @@ use crate::state::{ClientStateStore, InMemoryStateStore, PersistedClientState};
 /// on a race with another caller installing first (or a no-op call to this
 /// same function from a second `CratestackClient::new`) is expected and
 /// intentionally ignored.
-fn ensure_crypto_provider() {
+///
+/// Public since cratestack#926: [`CratestackClient::with_http_client`]
+/// and `with_middleware_client` both take an already-built
+/// `reqwest::Client`, so the panic happens in the *caller's* code,
+/// before this crate gets a chance to install anything. Callers on
+/// those paths need a way to say "install the fallback now", and this
+/// is it — idempotent, safe to call from anywhere, and a no-op once any
+/// provider is installed.
+pub fn ensure_crypto_provider() {
     let _ = rustls::crypto::ring::default_provider().install_default();
 }
 
 #[derive(Clone)]
 pub struct CratestackClient<C = CborCodec> {
-    pub(crate) http: reqwest::Client,
+    pub(crate) http: HttpClient,
     pub(crate) config: ClientConfig,
     pub(crate) codec: C,
     pub(crate) state_store: Arc<dyn ClientStateStore>,
@@ -48,6 +58,12 @@ pub struct CratestackClient<C = CborCodec> {
     /// when present; the server-side counterpart only ever warns on
     /// mismatch, never rejects.
     pub(crate) schema_sha: Option<&'static str>,
+    /// Per-call idempotency override (cratestack#926) set by
+    /// [`Self::with_idempotency`]. `None` — the default — means "derive
+    /// it from the HTTP method", which is the right answer for every
+    /// REST CRUD route and the wrong one for RPC (all `POST`) and for
+    /// `@query` procedures. See [`RequestIdempotency`].
+    pub(crate) idempotency: Option<RequestIdempotency>,
 }
 
 impl CratestackClient<CborCodec> {
@@ -63,23 +79,32 @@ where
     pub fn new(config: ClientConfig, codec: C) -> Self {
         ensure_crypto_provider();
         Self {
-            http: reqwest::Client::new(),
+            http: HttpClient::Plain(reqwest::Client::new()),
             config,
             codec,
             state_store: Arc::new(InMemoryStateStore::default()),
             request_authorizer: None,
             schema_sha: None,
+            idempotency: None,
         }
     }
 
+    /// Build a client on a caller-supplied `reqwest::Client` — a
+    /// custom timeout, proxy, or mTLS identity.
+    ///
+    /// Install a `rustls` crypto provider (e.g. via
+    /// [`ensure_crypto_provider`]) *before* constructing `http`:
+    /// unlike [`Self::new`], this constructor is handed an already-built
+    /// client, so the #440 panic fires in the caller, not here.
     pub fn with_http_client(config: ClientConfig, codec: C, http: reqwest::Client) -> Self {
         Self {
-            http,
+            http: HttpClient::Plain(http),
             config,
             codec,
             state_store: Arc::new(InMemoryStateStore::default()),
             request_authorizer: None,
             schema_sha: None,
+            idempotency: None,
         }
     }
 
@@ -126,51 +151,4 @@ where
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
-    use cratestack_core::CratestackError;
-
-    use super::*;
-
-    /// A `ClientStateStore` whose every operation fails, so tests can
-    /// observe how a local state-store failure gets classified without
-    /// touching the filesystem or any other real backend.
-    #[derive(Debug, Default)]
-    pub(crate) struct FailingStateStore;
-
-    impl ClientStateStore for FailingStateStore {
-        fn load(&self) -> Result<PersistedClientState, CratestackError> {
-            Err(CratestackError::Internal(
-                "simulated state store failure".to_owned(),
-            ))
-        }
-
-        fn save(&self, _state: &PersistedClientState) -> Result<(), CratestackError> {
-            Err(CratestackError::Internal(
-                "simulated state store failure".to_owned(),
-            ))
-        }
-    }
-
-    /// Regression test for #475's review findings: a `CratestackError` raised by
-    /// the state store must surface as `ClientError::State`, not get
-    /// silently reclassified as `ClientError::Codec` via the blanket
-    /// `From<CratestackError>` impl (which is meant for genuine wire-codec
-    /// failures, not local storage failures). Fails against the code that
-    /// used `.map_err(ClientError::from)` here.
-    #[test]
-    fn state_store_error_maps_to_client_error_state() {
-        let client = CratestackClient::cbor(ClientConfig::new(
-            "http://example.invalid".parse().expect("valid url"),
-        ))
-        .with_state_store(Arc::new(FailingStateStore));
-
-        let error = client.state().expect_err("state store is rigged to fail");
-
-        match error {
-            ClientError::State(message) => {
-                assert!(message.contains("simulated state store failure"));
-            }
-            other => panic!("expected ClientError::State for a state-store failure, got {other:?}"),
-        }
-    }
-}
+pub(crate) mod tests;

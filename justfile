@@ -181,6 +181,11 @@ check *args='':
 # small, documented set of codegen-friendly lints (see top of file).
 lint:
 	cargo clippy --workspace --exclude embedded_flutter_native --all-targets -- -D warnings {{clippy_allow}}
+	# `--workspace` above resolves each crate's DEFAULT features, so the
+	# `middleware`-gated code in `cratestack-client-rust` (cratestack#926)
+	# is never lint-checked by it — same blind spot the
+	# `--features`-forwarding lines in `test-ci-host` close for tests.
+	cargo clippy -p cratestack-client-rust --features middleware --all-targets -- -D warnings {{clippy_allow}}
 
 # Verify formatting without writing — blocking CI gate.
 fmt-check:
@@ -439,6 +444,12 @@ test-ci-host *args='':
 	cargo test -p cratestack-pg --features rate_limit --test rate_limit_extension {{args}} || status=1
 	cargo test -p cratestack-pg --features pgvector --test pgvector_feature_forwarding {{args}} || status=1
 	cargo test -p cratestack-client --features pgvector,rate_limit --test extension_feature_forwarding {{args}} || status=1
+	# cratestack#926: `tests/middleware.rs` is `#![cfg(feature = "middleware")]`
+	# and `client::http`'s Middleware arm plus the `with_middleware_client`
+	# doctest only exist under that feature, so the plain `--workspace` run
+	# above compiles all of it away. Whole crate, not one --test target, so
+	# the doctest runs too. No database needed.
+	cargo test -p cratestack-client-rust --features middleware {{args}} || status=1
 	exit "$status"
 
 # Report-only: surfaces the current pass/fail state of every `#[ignore]`d

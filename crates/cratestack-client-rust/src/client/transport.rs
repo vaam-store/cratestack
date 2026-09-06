@@ -5,12 +5,27 @@ use crate::client::decode::remote_error_from_response;
 use crate::client::helpers::{build_url, headers_to_runtime};
 use crate::codec::HttpClientCodec;
 use crate::error::{ClientError, HeaderPair, QueryPair};
+use crate::idempotency::RequestIdempotency;
 use crate::runtime::wire::RuntimeResponseWire;
 
 impl<C> CratestackClient<C>
 where
     C: HttpClientCodec,
 {
+    /// The [`RequestIdempotency`] this request goes out with: the
+    /// per-client override from
+    /// [`CratestackClient::with_idempotency`](crate::CratestackClient::with_idempotency)
+    /// when one is set, otherwise the RFC 9110 method-derived default.
+    ///
+    /// Computed for every request on both transports, plain or
+    /// middleware — a `Copy` bool wrapper, so the plain path pays a
+    /// `match` and nothing else (`client::http` explains why it cannot
+    /// be observed there).
+    fn request_idempotency(&self, method: &Method) -> RequestIdempotency {
+        self.idempotency
+            .unwrap_or_else(|| RequestIdempotency::for_method(method))
+    }
+
     pub(crate) async fn request_raw(
         &self,
         method: Method,
@@ -53,7 +68,11 @@ where
             )
             .await?;
 
-        let mut request = self.http.request(method.clone(), url).headers(header_map);
+        let mut request = self
+            .http
+            .request(method.clone(), url)
+            .headers(header_map)
+            .with_extension(self.request_idempotency(&method));
         if let Some(body) = body {
             request = request.body(body);
         }
@@ -115,7 +134,11 @@ where
             )
             .await?;
 
-        let mut request = self.http.request(method.clone(), url).headers(header_map);
+        let mut request = self
+            .http
+            .request(method.clone(), url)
+            .headers(header_map)
+            .with_extension(self.request_idempotency(&method));
         if let Some(body) = body {
             request = request.body(body);
         }

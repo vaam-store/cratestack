@@ -76,6 +76,23 @@ impl From<ClientError> for RuntimeErrorWire {
                 remote_code: None,
                 remote_body: None,
             },
+            // cratestack#926. Deliberately reported as `Transport`
+            // rather than a seventh `RuntimeErrorCode`: this enum's
+            // discriminants are a serialized FFI contract every bridge
+            // consumer (Dart, Swift, Kotlin) switches on, so adding a
+            // code breaks them, and from the far side of the bridge a
+            // middleware failure *is* "the HTTP call did not complete"
+            // — retries exhausted, a circuit breaker open, a token
+            // refresh that failed. The middleware's own message is
+            // preserved verbatim in `message`.
+            #[cfg(feature = "middleware")]
+            ClientError::Middleware(error) => Self {
+                code: RuntimeErrorCode::Transport,
+                http_status: None,
+                message: error.to_string(),
+                remote_code: None,
+                remote_body: None,
+            },
             ClientError::Codec(error) => Self {
                 code: RuntimeErrorCode::Codec,
                 http_status: Some(error.status_code().as_u16()),

@@ -132,6 +132,66 @@ left the trait unimplementable by generated code in that facade — which is wha
 broke `include_client_schema!` above. `cratestack-pg`, `-api` and `-sqlite` all
 already exported it; `cratestack-client` was the sole outlier.
 
+### The Rust client's HTTP transport is pluggable, so retries and tracing no longer need a fork
+
+`CratestackClient` hardcoded `reqwest::Client`. Both constructors (`new`,
+`with_http_client`) took or built one, and both send paths called `self.http.request(...)`
+on it directly, so a consumer wanting `reqwest-middleware` — retries with backoff, an
+OpenTelemetry span per request, response caching, a token-refresh hook — had nowhere to put
+it. On a Flutter/`flutter_rust_bridge` client, which is exactly where a flaky link makes
+retries load-bearing, the only options were forking the crate or reimplementing the
+transport.
+
+New `middleware` feature (off by default). `CratestackClient::with_middleware_client(config,
+codec, reqwest_middleware::ClientWithMiddleware)` builds a client whose every request runs
+the chain; internally the `http` field became a two-variant `HttpClient` enum
+(`Plain`/`Middleware`) over a small unified request builder. The existing API is untouched —
+`new` and `with_http_client` keep their signatures and their behaviour — and a default build
+resolves, compiles, and licence-checks exactly the dependency set it did before:
+`reqwest-middleware` is a `dep:`-gated optional dependency. The feature is forwarded by
+`cratestack-pg`, `-api`, `-client`, `-sqlite` and `-client-flutter`, so it is reachable from
+whichever facade a consumer already picked. `reqwest-middleware` 0.5 is the first line built
+against reqwest 0.13; the pairing crates are `reqwest-retry` >= 0.9 and `reqwest-tracing` >= 0.6.
+
+A retry middleware also needs to know *which* requests may be replayed, and that is not a
+question the middleware can answer for itself. Every request now carries a
+`RequestIdempotency` extension, readable with `extensions.get::<RequestIdempotency>()`, whose
+value defaults to the RFC 9110 answer for the method — `GET`/`DELETE` idempotent,
+`POST`/`PATCH` not, which is right for every generated REST CRUD route. Two cases the method
+cannot express get an explicit override, `CratestackClient::with_idempotency` for REST and
+`RpcClient::with_idempotency` for RPC (both take a cheap clone, both land on the same field):
+every RPC call is `POST /rpc/{op_id}`, so reads look non-idempotent to the default, and a
+REST `@query` procedure is a `POST` whatever it does. The per-op truth already exists as
+`OpDescriptor::idempotent_by_default`; passing it from *generated* client code, rather than
+by hand at the call site, is follow-up work. Note that the REST-side
+`RouteTransportDescriptor` carries no such field today — only the RPC `OpDescriptor` does.
+
+Two smaller things fell out. `ensure_crypto_provider` is now public: `new` installs the #440
+`ring` fallback for you, but `with_http_client` and `with_middleware_client` are handed an
+already-built `reqwest::Client`, so under `rustls-no-provider` the panic fires in the
+caller's code before this crate can do anything — callers on those paths need a way to say
+"install it now", and had none. And the extension is deliberately a no-op on the plain
+transport rather than a silent half-feature: reqwest 0.13 keeps `Request::extensions_mut()`
+`pub(crate)`, so there is no supported way to write one into a bare `reqwest::Request` from
+outside that crate, and no middleware chain to read it back out either.
+
+Errors stay where callers already look for them. A transport failure raised *through* a
+middleware chain is still `ClientError::Transport` / `RpcClientError::Transport`; only a
+failure raised *by* a middleware becomes the new (feature-gated, non-exhaustive-enum)
+`Middleware` variant, wrapping the cause opaquely so `anyhow` never reaches this crate's
+public signatures. Across the FFI bridge it is reported as the existing
+`RuntimeErrorCode::Transport` — that enum's discriminants are a serialized contract every
+Dart/Swift/Kotlin consumer switches on, and from the far side "retries exhausted" *is* "the
+HTTP call did not complete"; the middleware's own message is preserved verbatim.
+
+Covered by `crates/cratestack-client-rust/tests/middleware.rs` (a counting middleware sees
+both REST calls; a GET is replayed on 503 and a POST is not; the override flips a POST; an
+RPC call is replayed only with `with_idempotency`; a middleware failure maps to
+`ClientError::Middleware` and still chains through `Error::source`) plus a doctest on the new
+constructor. `--workspace` resolves default features only, so `just lint` and `just
+test-ci-host` each gained one `--features middleware` line — without them the feature would
+have shipped never once linted or run in CI.
+
 ### The npm publish wrapper retried the wrong things, and a green exit code was not a publish
 
 v0.11.1 (run 33808402763's tag, release run 33808493207) landed during npm's "Intermittent Failures
