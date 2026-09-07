@@ -2,13 +2,15 @@
 
 ## Unreleased
 
-### Reserve `part` and `import` for multi-file schemas (#922)
+### Reserve `part` and `import` for multi-file schemas — breaking (#922)
 
 Every `.cstack` identifier position now rejects the exact, case-sensitive words
 `part` and `import` with a contextual parse error. This keeps existing schemas
-from claiming syntax reserved for future multi-file declarations. The word `of`
-remains available: reserving `part` is sufficient to protect a future `part of`
-grammar sequence.
+from claiming syntax reserved for future multi-file declarations. The words are
+reserved consistently across declaration names, fields, variants, and parameters
+so parsers and editor tooling share one context-independent keyword policy. The
+word `of` remains available: reserving `part` is sufficient to protect a future
+`part of` grammar sequence.
 
 ### `SchemaError` carries its own file, and `render()` lost its arguments — breaking (#916)
 

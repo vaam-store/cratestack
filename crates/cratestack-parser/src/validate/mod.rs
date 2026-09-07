@@ -70,6 +70,10 @@ pub(crate) fn builtin_type_names() -> &'static [&'static str] {
     type_names::BUILTIN_TYPES
 }
 
+pub(crate) fn multi_file_schema_keywords() -> &'static [&'static str] {
+    reserved_idents::multi_file_schema_keywords()
+}
+
 pub(crate) fn validate_schema(
     path: &str,
     source: &str,
@@ -196,6 +200,11 @@ pub(crate) fn validate_schema_collecting(
 
 fn validate_datasource(schema: &Schema) -> Result<(), SchemaError> {
     if let Some(datasource) = &schema.datasource {
+        reserved_idents::validate_reserved_identifier(
+            &datasource.name,
+            datasource.span,
+            &format!("datasource `{}`", datasource.name),
+        )?;
         let provider = datasource_provider(schema);
 
         if let Some(provider) = provider

@@ -111,5 +111,12 @@ pub fn builtin_type_names() -> &'static [&'static str] {
     validate::builtin_type_names()
 }
 
+/// Words reserved for the multi-file schema grammar. Consumers that accept
+/// prospective identifiers, such as the LSP rename flow, must reject this
+/// canonical list before producing source the parser cannot read.
+pub fn reserved_multi_file_keywords() -> &'static [&'static str] {
+    validate::multi_file_schema_keywords()
+}
+
 #[cfg(test)]
 use relation_helpers::parse_relation_attribute;

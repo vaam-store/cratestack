@@ -160,6 +160,12 @@ fn rename_refuses_keywords_and_builtin_type_names() {
         rename("User", 1, "String"),
         Err(RenameError::Reserved(_))
     ));
+    for name in cratestack_parser::reserved_multi_file_keywords() {
+        assert!(matches!(
+            rename("User", 1, name),
+            Err(RenameError::Reserved(_))
+        ));
+    }
 }
 
 #[test]

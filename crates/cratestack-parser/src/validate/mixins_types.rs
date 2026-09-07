@@ -205,6 +205,11 @@ pub(super) fn validate_auth(
     model_names: &BTreeSet<String>,
 ) -> Result<(), SchemaError> {
     if let Some(auth) = &schema.auth {
+        validate_reserved_identifier(
+            &auth.name,
+            auth.span,
+            &format!("auth block `{}`", auth.name),
+        )?;
         validate_field_column_collisions(&auth.fields, "auth block", &auth.name)?;
 
         let mut fields = BTreeSet::new();

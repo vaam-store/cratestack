@@ -111,7 +111,10 @@ fn validate_new_name(new_name: &str) -> Result<(), RenameError> {
     if !valid {
         return Err(RenameError::InvalidIdentifier(new_name.to_owned()));
     }
-    if KEYWORDS.contains(&new_name) || cratestack_parser::builtin_type_names().contains(&new_name) {
+    if KEYWORDS.contains(&new_name)
+        || cratestack_parser::builtin_type_names().contains(&new_name)
+        || cratestack_parser::reserved_multi_file_keywords().contains(&new_name)
+    {
         return Err(RenameError::Reserved(new_name.to_owned()));
     }
     Ok(())

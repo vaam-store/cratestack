@@ -1,9 +1,9 @@
 #![cfg(test)]
 //! cratestack#922: `part` and `import` belong to the future multi-file
 //! schema grammar, so every place that accepts a `.cstack` identifier must
-//! reject them before those declarations ship. Reserving only top-level
-//! names would leave fields, enum variants, and callable parameters able to
-//! make the grammar ambiguous later.
+//! reject them before those declarations ship. Keeping language keywords
+//! unavailable in every identifier position also prevents tooling from
+//! needing context-specific keyword lists.
 
 use super::parse_schema;
 
@@ -19,6 +19,11 @@ fn assert_reserved(source: &str, keyword: &str, subject: &str) {
 
 fn identifier_sites(keyword: &str) -> Vec<(&'static str, String)> {
     vec![
+        (
+            "datasource",
+            format!("datasource {keyword} {{\n  provider = \"postgresql\"\n}}"),
+        ),
+        ("auth block", format!("auth {keyword} {{\n  id String\n}}")),
         ("model", format!("model {keyword} {{\n  id Int @id\n}}")),
         (
             "field",

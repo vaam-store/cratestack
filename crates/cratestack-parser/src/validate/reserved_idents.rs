@@ -23,6 +23,10 @@ use crate::diagnostics::{SchemaError, span_error};
 
 const MULTI_FILE_SCHEMA_KEYWORDS: &[&str] = &["part", "import"];
 
+pub(crate) fn multi_file_schema_keywords() -> &'static [&'static str] {
+    MULTI_FILE_SCHEMA_KEYWORDS
+}
+
 /// Reject `name` if it belongs to the future multi-file schema grammar or has
 /// no valid Rust identifier spelling at all.
 /// `subject` should read naturally as "$subject cannot be represented..." —
