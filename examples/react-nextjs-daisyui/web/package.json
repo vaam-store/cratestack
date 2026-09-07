@@ -27,7 +27,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "daisyui": "^5.5.19",
-    "postcss": "^8.5.14",
+    "postcss": "^8.5.28",
     "serwist": "^9.5.11",
     "tailwindcss": "^4.3.0",
     "typescript": "^7.0.2"
