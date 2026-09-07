@@ -45,7 +45,7 @@
     "@refinedev/core": "^5.0.0",
     "decimal.js": "^10.6.0",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   },
   "engines": {
     "node": ">=24"
