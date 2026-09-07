@@ -25,6 +25,7 @@ mod query_placeholders;
 mod query_signature;
 mod removed_attributes;
 mod reserved_idents;
+mod reserved_keywords;
 mod route_collisions;
 mod snake_case_collisions;
 mod spatial_type;

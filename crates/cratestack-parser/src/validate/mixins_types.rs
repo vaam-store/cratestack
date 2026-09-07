@@ -16,6 +16,7 @@ use crate::validate::fields::{
 use crate::validate::misspelled_attributes::validate_misspelled_field_attributes;
 use crate::validate::removed_attributes::validate_removed_field_attributes;
 use crate::validate::reserved_idents::validate_reserved_identifier;
+use crate::validate::reserved_keywords::validate_reserved_keyword;
 use crate::validate::snake_case_collisions::validate_field_column_collisions;
 use crate::validate::type_names::validate_type_ref;
 
@@ -30,6 +31,11 @@ pub(super) fn validate_mixins_collecting(
     for mixin in &schema.mixins {
         record(errors, || {
             validate_reserved_identifier(
+                &mixin.name,
+                mixin.name_span,
+                &format!("mixin `{}`", mixin.name),
+            )?;
+            validate_reserved_keyword(
                 &mixin.name,
                 mixin.name_span,
                 &format!("mixin `{}`", mixin.name),
@@ -110,6 +116,7 @@ pub(super) fn validate_types_collecting(
     for ty in &schema.types {
         record(errors, || {
             validate_reserved_identifier(&ty.name, ty.name_span, &format!("type `{}`", ty.name))?;
+            validate_reserved_keyword(&ty.name, ty.name_span, &format!("type `{}`", ty.name))?;
             validate_field_column_collisions(&ty.fields, "type", &ty.name)?;
             validate_no_build_setter_collision(
                 ty.fields
@@ -175,6 +182,11 @@ pub(super) fn validate_enums_collecting(schema: &Schema, errors: &mut Vec<Schema
                 enum_decl.name_span,
                 &format!("enum `{}`", enum_decl.name),
             )?;
+            validate_reserved_keyword(
+                &enum_decl.name,
+                enum_decl.name_span,
+                &format!("enum `{}`", enum_decl.name),
+            )?;
 
             let mut variants = BTreeSet::new();
             for variant in &enum_decl.variants {
@@ -188,6 +200,11 @@ pub(super) fn validate_enums_collecting(schema: &Schema, errors: &mut Vec<Schema
                     ));
                 }
                 validate_reserved_identifier(
+                    &variant.name,
+                    variant.span,
+                    &format!("variant `{}` on enum `{}`", variant.name, enum_decl.name),
+                )?;
+                validate_reserved_keyword(
                     &variant.name,
                     variant.span,
                     &format!("variant `{}` on enum `{}`", variant.name, enum_decl.name),

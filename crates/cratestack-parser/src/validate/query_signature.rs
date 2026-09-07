@@ -16,6 +16,7 @@ use cratestack_core::{Query, Schema, TypeArity};
 
 use crate::diagnostics::{SchemaError, span_error};
 use crate::validate::reserved_idents::validate_reserved_identifier;
+use crate::validate::reserved_keywords::validate_reserved_keyword;
 
 /// Scalar `.cstack` types a `query` parameter may have in v1.
 ///
@@ -40,6 +41,11 @@ pub(super) fn validate_query_args(query: &Query) -> Result<(), SchemaError> {
     let mut seen = BTreeSet::new();
     for arg in &query.args {
         validate_reserved_identifier(
+            &arg.name,
+            arg.name_span,
+            &format!("query parameter `{}` on query `{}`", arg.name, query.name),
+        )?;
+        validate_reserved_keyword(
             &arg.name,
             arg.name_span,
             &format!("query parameter `{}` on query `{}`", arg.name, query.name),

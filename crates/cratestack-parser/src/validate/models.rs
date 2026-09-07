@@ -21,6 +21,7 @@ use crate::validate::model_relation::validate_field_relation;
 use crate::validate::patch_touch_flag_collisions::validate_no_touch_flag_collision;
 use crate::validate::removed_attributes::validate_removed_field_attributes;
 use crate::validate::reserved_idents::validate_reserved_identifier;
+use crate::validate::reserved_keywords::validate_reserved_keyword;
 use crate::validate::route_collisions::validate_model_route_collisions;
 use crate::validate::snake_case_collisions::{
     validate_field_column_collisions, validate_model_name_collisions,
@@ -57,6 +58,11 @@ pub(super) fn validate_models_collecting(
     for model in &schema.models {
         record(errors, || {
             validate_reserved_identifier(
+                &model.name,
+                model.name_span,
+                &format!("model `{}`", model.name),
+            )?;
+            validate_reserved_keyword(
                 &model.name,
                 model.name_span,
                 &format!("model `{}`", model.name),

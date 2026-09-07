@@ -69,6 +69,8 @@ mod tests_relations_policy;
 #[cfg(test)]
 mod tests_reserved_keywords;
 #[cfg(test)]
+mod tests_reserved_keywords_multi_file;
+#[cfg(test)]
 mod tests_snake_case_collisions;
 #[cfg(test)]
 mod tests_spatial;

@@ -30,6 +30,7 @@ use crate::validate::fields::validate_field_reserved_identifier;
 use crate::validate::misspelled_attributes::validate_misspelled_field_attributes;
 use crate::validate::removed_attributes::validate_removed_field_attributes;
 use crate::validate::reserved_idents::validate_reserved_identifier;
+use crate::validate::reserved_keywords::validate_reserved_keyword;
 use crate::validate::snake_case_collisions::validate_field_column_collisions;
 
 /// Each view is checked independently so one bad view does not hide the next.
@@ -56,6 +57,7 @@ pub(super) fn validate_views_collecting(schema: &Schema, errors: &mut Vec<Schema
 
 fn validate_view(view: &View, model_names: &BTreeSet<&str>) -> Result<(), SchemaError> {
     validate_reserved_identifier(&view.name, view.name_span, &format!("view `{}`", view.name))?;
+    validate_reserved_keyword(&view.name, view.name_span, &format!("view `{}`", view.name))?;
     validate_field_column_collisions(&view.fields, "view", &view.name)?;
     validate_no_build_setter_collision(
         view.fields
