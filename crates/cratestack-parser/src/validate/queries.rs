@@ -31,8 +31,7 @@ use crate::validate::collect::record;
 use crate::validate::query_attributes::validate_query_attributes;
 use crate::validate::query_placeholders::validate_query_placeholders;
 use crate::validate::query_signature::{validate_query_args, validate_query_result_type};
-use crate::validate::reserved_idents::validate_reserved_identifier;
-use crate::validate::reserved_keywords::validate_reserved_keyword;
+use crate::validate::reserved_keywords::validate_reserved_ident_site;
 use crate::validate::snake_case_collisions::find_collision_by;
 
 /// Each query is checked independently so one bad query does not hide the
@@ -48,14 +47,7 @@ pub(super) fn validate_queries_collecting(
 
     for query in &schema.queries {
         record(errors, || {
-            validate_reserved_identifier(
-                &query.name,
-                query.name_span,
-                &format!("query `{}`", query.name),
-            )
-        });
-        record(errors, || {
-            validate_reserved_keyword(
+            validate_reserved_ident_site(
                 &query.name,
                 query.name_span,
                 &format!("query `{}`", query.name),

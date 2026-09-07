@@ -17,6 +17,7 @@
 use cratestack_core::SourceSpan;
 
 use crate::diagnostics::{SchemaError, span_error};
+use crate::validate::reserved_idents::validate_reserved_identifier;
 
 /// The words the multi-file-schemas feature (epic #910) will use as
 /// command words. Reserved as identifiers in every `.cstack` ident site so
@@ -43,4 +44,19 @@ pub(super) fn validate_reserved_keyword(
         ),
         span,
     ))
+}
+
+/// Run both reservation checks for one ident site: the Rust-identifier
+/// check ([`validate_reserved_identifier`], `reserved_idents.rs`) and the
+/// multi-file-schema keyword check ([`validate_reserved_keyword`]). Called
+/// once per ident site so a name that is neither a reserved Rust keyword
+/// nor `part`/`import` parses cleanly, and so each site adds only one call
+/// (which keeps every source file under the 200-LoC ceiling).
+pub(super) fn validate_reserved_ident_site(
+    name: &str,
+    span: SourceSpan,
+    subject: &str,
+) -> Result<(), SchemaError> {
+    validate_reserved_identifier(name, span, subject)?;
+    validate_reserved_keyword(name, span, subject)
 }

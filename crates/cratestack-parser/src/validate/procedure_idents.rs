@@ -12,30 +12,16 @@ use crate::diagnostics::SchemaError;
 use crate::validate::builder_setter_collisions::{
     validate_no_add_setter_collision, validate_no_build_setter_collision,
 };
-use crate::validate::reserved_idents::validate_reserved_identifier;
-use crate::validate::reserved_keywords::validate_reserved_keyword;
+use crate::validate::reserved_keywords::validate_reserved_ident_site;
 
 pub(super) fn validate_procedure_idents(procedure: &Procedure) -> Result<(), SchemaError> {
-    validate_reserved_identifier(
-        &procedure.name,
-        procedure.name_span,
-        &format!("procedure `{}`", procedure.name),
-    )?;
-    validate_reserved_keyword(
+    validate_reserved_ident_site(
         &procedure.name,
         procedure.name_span,
         &format!("procedure `{}`", procedure.name),
     )?;
     for arg in &procedure.args {
-        validate_reserved_identifier(
-            &arg.name,
-            arg.name_span,
-            &format!(
-                "procedure argument `{}` on procedure `{}`",
-                arg.name, procedure.name
-            ),
-        )?;
-        validate_reserved_keyword(
+        validate_reserved_ident_site(
             &arg.name,
             arg.name_span,
             &format!(

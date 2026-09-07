@@ -11,119 +11,12 @@
 //! `importer` all contain a reserved word as a substring but must keep
 //! parsing (see
 //! `substring_matches_of_multi_file_reserved_keywords_are_not_rejected`).
+//!
+//! Split into sibling `tests_reserved_keywords_multi_file_{entries,queries}`
+//! to stay under the 200-LoC ceiling. This file covers the data-model
+//! declaration names (model/mixin/type/enum) plus the exact-match guards.
 
 use super::parse_schema;
-
-#[test]
-fn rejects_part_and_import_as_a_model_field_name() {
-    for word in ["part", "import"] {
-        let source = format!(
-            r#"
-model KwProbe {{
-  id Int @id
-  {word} String
-}}
-"#
-        );
-        let error =
-            parse_schema(&source).expect_err(&format!("a field named `{word}` must be rejected"));
-
-        let message = error.to_string();
-        assert!(message.contains(word), "error: {message}");
-        assert!(message.contains("KwProbe"), "error: {message}");
-        assert!(message.contains("model"), "error: {message}");
-        assert!(message.contains("reserved"), "error: {message}");
-        assert!(message.contains("multi-file"), "error: {message}");
-    }
-}
-
-#[test]
-fn rejects_part_and_import_as_a_type_block_field_name() {
-    for word in ["part", "import"] {
-        let source = format!(
-            r#"
-type KwProbe {{
-  {word} String
-}}
-"#
-        );
-        let error = parse_schema(&source).expect_err(&format!(
-            "a `type` block field named `{word}` must be rejected"
-        ));
-
-        let message = error.to_string();
-        assert!(message.contains(word), "error: {message}");
-        assert!(message.contains("KwProbe"), "error: {message}");
-        assert!(message.contains("type"), "error: {message}");
-        assert!(message.contains("reserved"), "error: {message}");
-        assert!(message.contains("multi-file"), "error: {message}");
-    }
-}
-
-#[test]
-fn rejects_part_and_import_as_a_mixin_field_name() {
-    for word in ["part", "import"] {
-        let source = format!(
-            r#"
-mixin KwProbe {{
-  {word} String
-}}
-"#
-        );
-        let error = parse_schema(&source)
-            .expect_err(&format!("a mixin field named `{word}` must be rejected"));
-
-        assert!(error.to_string().contains("mixin"), "error: {error}");
-        assert!(error.to_string().contains("reserved"), "error: {error}");
-        assert!(error.to_string().contains("multi-file"), "error: {error}");
-    }
-}
-
-// --- top-level and other ident sites ---
-
-#[test]
-fn rejects_part_and_import_as_an_enum_name() {
-    for word in ["part", "import"] {
-        let source = format!(
-            r#"
-enum {word} {{
-  active
-  inactive
-}}
-"#
-        );
-        let error =
-            parse_schema(&source).expect_err(&format!("an enum named `{word}` must be rejected"));
-
-        let message = error.to_string();
-        assert!(message.contains(word), "error: {message}");
-        assert!(message.contains("enum"), "error: {message}");
-        assert!(message.contains("reserved"), "error: {message}");
-        assert!(message.contains("multi-file"), "error: {message}");
-    }
-}
-
-#[test]
-fn rejects_part_and_import_as_an_enum_variant_name() {
-    for word in ["part", "import"] {
-        let source = format!(
-            r#"
-enum Status {{
-  {word}
-  active
-}}
-"#
-        );
-        let error = parse_schema(&source)
-            .expect_err(&format!("an enum variant named `{word}` must be rejected"));
-
-        let message = error.to_string();
-        assert!(message.contains(word), "error: {message}");
-        assert!(message.contains("Status"), "error: {message}");
-        assert!(message.contains("reserved"), "error: {message}");
-        assert!(message.contains("multi-file"), "error: {message}");
-    }
-}
 
 #[test]
 fn rejects_part_and_import_as_a_top_level_model_name() {
@@ -189,117 +82,44 @@ type {word} {{
 }
 
 #[test]
-fn rejects_part_and_import_as_a_view_name() {
+fn rejects_part_and_import_as_an_enum_name() {
     for word in ["part", "import"] {
         let source = format!(
             r#"
-datasource db {{
-  provider = "postgresql"
-}}
-
-model Customer {{
-  id Int @id
-}}
-
-view {word} from Customer {{
-  id Int @id @from(Customer.id)
-
-  @@server_sql("SELECT id FROM customer")
+enum {word} {{
+  active
+  inactive
 }}
 "#
         );
         let error =
-            parse_schema(&source).expect_err(&format!("a view named `{word}` must be rejected"));
+            parse_schema(&source).expect_err(&format!("an enum named `{word}` must be rejected"));
 
         let message = error.to_string();
         assert!(message.contains(word), "error: {message}");
-        assert!(message.contains("view"), "error: {message}");
+        assert!(message.contains("enum"), "error: {message}");
         assert!(message.contains("reserved"), "error: {message}");
         assert!(message.contains("multi-file"), "error: {message}");
     }
 }
 
 #[test]
-fn rejects_part_and_import_as_a_procedure_name() {
+fn rejects_part_and_import_as_an_enum_variant_name() {
     for word in ["part", "import"] {
-        let source = format!("procedure {word}(): Int\n");
+        let source = format!(
+            r#"
+enum Status {{
+  {word}
+  active
+}}
+"#
+        );
         let error = parse_schema(&source)
-            .expect_err(&format!("a procedure named `{word}` must be rejected"));
+            .expect_err(&format!("an enum variant named `{word}` must be rejected"));
 
         let message = error.to_string();
         assert!(message.contains(word), "error: {message}");
-        assert!(message.contains("procedure"), "error: {message}");
-        assert!(message.contains("reserved"), "error: {message}");
-        assert!(message.contains("multi-file"), "error: {message}");
-    }
-}
-
-#[test]
-fn rejects_part_and_import_as_a_procedure_argument_name() {
-    for word in ["part", "import"] {
-        let source = format!("procedure getFeed({word}: Int): Int\n");
-        let error = parse_schema(&source).expect_err(&format!(
-            "a procedure argument named `{word}` must be rejected"
-        ));
-
-        let message = error.to_string();
-        assert!(message.contains(word), "error: {message}");
-        assert!(message.contains("procedure argument"), "error: {message}");
-        assert!(message.contains("getFeed"), "error: {message}");
-        assert!(message.contains("reserved"), "error: {message}");
-        assert!(message.contains("multi-file"), "error: {message}");
-    }
-}
-
-#[test]
-fn rejects_part_and_import_as_a_query_name() {
-    // The `query` block is newer than #922's original ident list; upstream
-    // added it in #867/#870, and its name is an ident site the Rust-keyword
-    // rule already covers (`validate/queries.rs`) — so the reservation must
-    // cover it too, or a `query part` would slip through while `model part`
-    // is rejected.
-    for word in ["part", "import"] {
-        let source = format!(
-            r#"
-type Totals {{
-  total Int
-}}
-
-query {word}(userId: String): Totals
-  @@sql("SELECT $1::text AS total")
-"#
-        );
-        let error =
-            parse_schema(&source).expect_err(&format!("a query named `{word}` must be rejected"));
-
-        let message = error.to_string();
-        assert!(message.contains(word), "error: {message}");
-        assert!(message.contains("query"), "error: {message}");
-        assert!(message.contains("reserved"), "error: {message}");
-        assert!(message.contains("multi-file"), "error: {message}");
-    }
-}
-
-#[test]
-fn rejects_part_and_import_as_a_query_parameter_name() {
-    for word in ["part", "import"] {
-        let source = format!(
-            r#"
-type Totals {{
-  total Int
-}}
-
-query totals({word}: String): Totals
-  @@sql("SELECT $1::text AS total")
-"#
-        );
-        let error = parse_schema(&source).expect_err(&format!(
-            "a query parameter named `{word}` must be rejected"
-        ));
-
-        let message = error.to_string();
-        assert!(message.contains(word), "error: {message}");
-        assert!(message.contains("query parameter"), "error: {message}");
+        assert!(message.contains("Status"), "error: {message}");
         assert!(message.contains("reserved"), "error: {message}");
         assert!(message.contains("multi-file"), "error: {message}");
     }

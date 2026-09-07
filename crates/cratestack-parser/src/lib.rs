@@ -71,6 +71,10 @@ mod tests_reserved_keywords;
 #[cfg(test)]
 mod tests_reserved_keywords_multi_file;
 #[cfg(test)]
+mod tests_reserved_keywords_multi_file_entries;
+#[cfg(test)]
+mod tests_reserved_keywords_multi_file_queries;
+#[cfg(test)]
 mod tests_snake_case_collisions;
 #[cfg(test)]
 mod tests_spatial;

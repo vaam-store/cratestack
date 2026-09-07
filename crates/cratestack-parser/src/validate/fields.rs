@@ -3,8 +3,7 @@ use std::collections::BTreeSet;
 use cratestack_core::{Field, TypeArity};
 
 use crate::diagnostics::{SchemaError, span_error};
-use crate::validate::reserved_idents::validate_reserved_identifier;
-use crate::validate::reserved_keywords::validate_reserved_keyword;
+use crate::validate::reserved_keywords::validate_reserved_ident_site;
 
 // `ComputedFieldSupport`/`validate_computed_field_attribute` moved to
 // `super::computed_attribute` (200-LoC file-ceiling split) — call sites
@@ -110,21 +109,17 @@ pub(super) fn validate_default_dbgenerated_no_args(
 /// [`crate::validate::reserved_idents::validate_reserved_identifier`],
 /// which also covers every other ident site the codegen `ident()` helper
 /// touches (model/mixin/type/view/procedure names, enum names/variants,
-/// procedure argument names). Also routes through
-/// [`crate::validate::reserved_keywords::validate_reserved_keyword`] so a
-/// field named `part`/`import` (cratestack#922) is rejected at the same
+/// procedure argument names). Also runs the multi-file-schema keyword
+/// check via
+/// [`crate::validate::reserved_keywords::validate_reserved_ident_site`] so
+/// a field named `part`/`import` (cratestack#922) is rejected at the same
 /// single funnel every field kind flows through.
 pub(super) fn validate_field_reserved_identifier(
     field: &cratestack_core::Field,
     owner_kind: &str,
     owner_name: &str,
 ) -> Result<(), SchemaError> {
-    validate_reserved_identifier(
-        &field.name,
-        field.span,
-        &format!("field `{}` on {owner_kind} `{owner_name}`", field.name),
-    )?;
-    validate_reserved_keyword(
+    validate_reserved_ident_site(
         &field.name,
         field.span,
         &format!("field `{}` on {owner_kind} `{owner_name}`", field.name),
