@@ -63,7 +63,7 @@
     "@cratestack/ts-types": "0.12.0",
     "@napi-rs/cli": "^3.8.6",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   },
   "engines": {
     "node": ">=24"
