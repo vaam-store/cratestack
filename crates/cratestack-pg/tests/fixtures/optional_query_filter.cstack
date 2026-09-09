@@ -1,0 +1,14 @@
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+// Regression fixture for cratestack#953: generated REST list routes must
+// expose equality operators for optional scalars, not only `isNull` and
+// optional string-pattern operators.
+model OptionalDelivery {
+  id Int @id
+  verificationId String?
+
+  @@allow("read", auth() != null)
+}

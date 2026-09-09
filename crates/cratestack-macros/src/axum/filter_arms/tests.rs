@@ -52,6 +52,15 @@ model Order {
 }
 "#;
 
+const OPTIONAL_FIXTURE: &str = r#"
+model Delivery {
+  id Int @id
+  verificationId String?
+
+  @@allow("read", true)
+}
+"#;
+
 #[test]
 fn required_enum_field_generates_a_query_filter_arm() {
     let schema = parse_fixture(ENUM_FIXTURE);
@@ -111,5 +120,36 @@ fn non_enum_unsupported_type_still_generates_no_arm() {
     assert!(
         arm.is_none(),
         "an unrecognized type name (enum set empty) must still generate no arm"
+    );
+}
+
+#[test]
+fn optional_string_field_generates_equality_text_and_null_filter_arms() {
+    let schema = parse_fixture(OPTIONAL_FIXTURE);
+    let model = schema
+        .models
+        .iter()
+        .find(|model| model.name == "Delivery")
+        .expect("fixture should declare a Delivery model");
+    let field = model
+        .fields
+        .iter()
+        .find(|field| field.name == "verificationId")
+        .expect("Delivery should declare verificationId");
+    let field_module_ident = syn::Ident::new("delivery", proc_macro2::Span::call_site());
+
+    let rendered = generate_query_filter_arm(&field_module_ident, field, &BTreeSet::new())
+        .expect("an optional String field must generate query-filter arms")
+        .to_string();
+
+    for operator in ["eq", "ne", "in", "contains", "startsWith", "isNull"] {
+        assert!(
+            rendered.contains(&format!("\"{operator}\"")),
+            "expected an {operator} arm, got: {rendered}"
+        );
+    }
+    assert!(
+        !rendered.contains("\"lt\"") && !rendered.contains("\"gt\""),
+        "this equality fix must not silently broaden optional ordering operators: {rendered}"
     );
 }

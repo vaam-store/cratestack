@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Optional scalars now expose equality filters on generated list routes (#953)
+
+Generated Axum list routes previously emitted `eq`/`ne`/`in` query-filter
+arms only for required fields. An optional field such as
+`verificationId String?` therefore accepted `isNull` and string-pattern
+filters but returned HTTP 400 for `verificationId=value`, even though the
+typed Rust `Where` path and the underlying `FieldRef` already supported that
+equality operation.
+
+Optional filterable scalars now receive the same `eq`/`ne`/`in` arms as
+required scalars, alongside their existing `isNull` support. Scalar-list and
+unsupported custom fields remain excluded, and this change does not add
+ordering operators to optional fields. RPC list calls inherit the fix through
+their existing REST-query synthesis path; both transports have live-Postgres
+regression coverage.
+
 ## 0.12.0 (2026-09-06)
 
 ### `main` was red: two #928 fixtures collided on the `orders` table

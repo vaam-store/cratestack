@@ -26,7 +26,7 @@ pub(super) fn generate_query_filter_arm(
         query_scalar_parser_tokens(&field.ty, quote! { value }, field_name, enum_names)?;
     let mut arms = Vec::new();
 
-    if field.ty.arity == TypeArity::Required {
+    if matches!(field.ty.arity, TypeArity::Required | TypeArity::Optional) {
         let list_parser = query_scalar_list_parser_tokens(&field.ty, field_name, enum_names)?;
         arms.push(quote! {
             (#field_name, "eq") => {
@@ -46,7 +46,7 @@ pub(super) fn generate_query_filter_arm(
                 Ok(::cratestack::FilterExpr::from(super::#field_module_ident::#field_fn().in_(parsed)))
             }
         });
-        if supports_comparison(field) {
+        if field.ty.arity == TypeArity::Required && supports_comparison(field) {
             arms.push(quote! {
                 (#field_name, "lt") => {
                     let parsed = (#scalar_parser)?;
