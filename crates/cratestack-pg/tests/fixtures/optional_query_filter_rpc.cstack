@@ -1,0 +1,15 @@
+transport rpc
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+// RPC transport counterpart to optional_query_filter.cstack. RPC list
+// dispatch synthesizes query pairs and re-enters the generated REST parser.
+model RpcOptionalDelivery {
+  id Int @id
+  verificationId String?
+
+  @@allow("read", auth() != null)
+}
