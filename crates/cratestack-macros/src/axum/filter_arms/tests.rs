@@ -56,6 +56,7 @@ const OPTIONAL_FIXTURE: &str = r#"
 model Delivery {
   id Int @id
   verificationId String?
+  attempt Int?
 
   @@allow("read", true)
 }
@@ -148,8 +149,37 @@ fn optional_string_field_generates_equality_text_and_null_filter_arms() {
             "expected an {operator} arm, got: {rendered}"
         );
     }
-    assert!(
-        !rendered.contains("\"lt\"") && !rendered.contains("\"gt\""),
-        "this equality fix must not silently broaden optional ordering operators: {rendered}"
-    );
+}
+
+#[test]
+fn optional_comparable_field_gets_equality_but_not_ordering_filter_arms() {
+    let schema = parse_fixture(OPTIONAL_FIXTURE);
+    let model = schema
+        .models
+        .iter()
+        .find(|model| model.name == "Delivery")
+        .expect("fixture should declare a Delivery model");
+    let field = model
+        .fields
+        .iter()
+        .find(|field| field.name == "attempt")
+        .expect("Delivery should declare attempt");
+    let field_module_ident = syn::Ident::new("delivery", proc_macro2::Span::call_site());
+
+    let rendered = generate_query_filter_arm(&field_module_ident, field, &BTreeSet::new())
+        .expect("an optional Int field must generate query-filter arms")
+        .to_string();
+
+    for operator in ["eq", "ne", "in", "isNull"] {
+        assert!(
+            rendered.contains(&format!("\"{operator}\"")),
+            "expected an {operator} arm, got: {rendered}"
+        );
+    }
+    for operator in ["lt", "lte", "gt", "gte"] {
+        assert!(
+            !rendered.contains(&format!("\"{operator}\"")),
+            "this equality fix must not broaden optional ordering with {operator}: {rendered}"
+        );
+    }
 }

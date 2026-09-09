@@ -46,7 +46,7 @@ pub(super) fn generate_query_filter_arm(
                 Ok(::cratestack::FilterExpr::from(super::#field_module_ident::#field_fn().in_(parsed)))
             }
         });
-        if field.ty.arity == TypeArity::Required && supports_comparison(field) {
+        if supports_comparison(field) {
             arms.push(quote! {
                 (#field_name, "lt") => {
                     let parsed = (#scalar_parser)?;
