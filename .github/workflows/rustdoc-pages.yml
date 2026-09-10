@@ -3,6 +3,17 @@ name: Publish Rust Docs
 on:
   push:
     branches: ["main"]
+    # The rustdoc site only documents the framework crates under `crates/`
+    # (see the `-p` list in the build step) plus what compiling them needs:
+    # the workspace manifest, lockfile and pinned toolchain. Changes to
+    # docs/, examples/, packages/ or .ci/ cannot change the published docs,
+    # so they should not rebuild and redeploy the site.
+    paths:
+      - "crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - ".github/workflows/rustdoc-pages.yml"
   workflow_dispatch:
 
 permissions:
