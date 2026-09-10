@@ -30,7 +30,7 @@ rather than resolved on purpose.
 | Four facades (`-pg`, `-api`, `-sqlite`, `-client`) | 0.4.0 | selected via Cargo `package =` rename |
 | Postgres backend (sqlx) + Axum routes | 0.1 | CRUD, procedures, projections, filters, relations |
 | Row-level policy (`@@allow` / `@@deny`) | 0.1 | compiled into the SQL of every read and write |
-| Embedded SQLite (rusqlite), native + `wasm32` | 0.3.0 | OPFS persistence in the browser; sync API |
+| Embedded SQLite (rusqlite), native + `wasm32` | 0.3.0 | OPFS persistence in the browser; Flutter & React Native (Expo) mobile hosts; sync API |
 | Generated clients: Rust, Dart, TypeScript | 0.2–0.6 | same projection contract across all three |
 | CBOR + JSON codecs | 0.1 | CBOR is the default wire format |
 | RPC transport (`POST /rpc/{op_id}`, `/rpc/batch`) | 0.5–0.6 | mutually exclusive with REST per schema |
@@ -90,11 +90,12 @@ the SSE path authenticates but currently gets **no per-row filtering**, because
 
 ### 🆕 React Native (Expo + bare) as a client target ([#893](https://github.com/cratestack/cratestack/issues/893))
 
-React Native is the one major mobile host with no coverage at all. Scoped into
-five stories: a Rust-backed CBOR codec that runs on device, a `react-native`
-export condition across the shared packages, a generated RN client following the
-Dart preset pattern, a generated RTK Query endpoint set, and Expo + bare
-examples.
+React Native is the one major mobile host with no client SDK coverage
+(`examples/embedded-expo` covers the embedded SQLite host shape, while client
+generation remains in progress). Scoped into five stories: a Rust-backed CBOR
+codec that runs on device, a `react-native` export condition across the shared
+packages, a generated RN client following the Dart preset pattern, a generated
+RTK Query endpoint set, and Expo + bare examples.
 
 Start at [#899](https://github.com/cratestack/cratestack/issues/899), a decision
 ticket: Hermes is gaining WebAssembly support, and if that lands broadly
