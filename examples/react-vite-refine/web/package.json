@@ -14,7 +14,7 @@
     "verify": "tsx scripts/verify.ts"
   },
   "dependencies": {
-    "@cratestack/refine": "^0.8.14",
+    "@cratestack/refine": "^0.11.1",
     "@refinedev/core": "^5.0.0",
     "@tanstack/react-query": "^5.102.8",
     "decimal.js": "^10.6.0",
@@ -22,11 +22,11 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.11",
+    "@biomejs/biome": "^2.5.12",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-react": "^6.0.5",
-    "tsx": "^4.19.0",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "vite": "^8.2.0"
   }
